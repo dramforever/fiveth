@@ -71,7 +71,9 @@ toplevel:
 1:
     la s11, token_buf
     li s10, -1
+    li a0, '>' ; call fiveth_putchar
 2:
+    li a0, ' ' ; call fiveth_putchar
     la a0, line_buf
     call fiveth_getline
     bltz a0, 10f // Exit on EOF
@@ -95,6 +97,7 @@ toplevel:
 3:
     mv s11, a0
     mv s10, a1
+    li a0, '|' ; call fiveth_putchar
     j 2b
 
 10:
@@ -308,6 +311,7 @@ parse_line:
     j .Lparse_done
 
 .Lparse_error:
+    addi s_wptr, s_wptr, 2  // Leave space for prompt
 1:
     la a1, line_buf
     beq a1, s_wptr, 2f
