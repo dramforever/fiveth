@@ -65,27 +65,75 @@ main:
     tail toplevel
     .size main, . - main
 
-#define s_tok s11   // Token buffer
-#define s_wptr s10  // Start of token
-#define s_wend s9   // End of word
-#define s_eol s8    // End of line
-#define s_lptr s7   // Length back-fill pointer
-#define s_errmsg s6 // Error message
-
     // REPL starts here
     .type toplevel, @function
 toplevel:
-    la s_rsp, return_stack
-    la s_tok, token_buf
-    li s_lptr, -1
-
-.Lparse_line:
+1:
+    la s11, token_buf
+    li s10, -1
+2:
     la a0, line_buf
     call fiveth_getline
-    bltz a0, .Lexit // Exit on EOF
-    // a0 = length of current line
-    la s_wptr, line_buf
-    add s_eol, s_wptr, a0
+    bltz a0, 10f // Exit on EOF
+    mv a3, a0
+    mv a0, s11
+    mv a1, s10
+    la a2, line_buf
+    call parse_line
+    not a2, a0
+    beqz a2, 1b // Parse error
+    not a2, a1
+    bnez a2, 3f // Line continues
+
+    la s_rsp, return_stack
+    la s_ip, token_buf
+    ln a0, (s_ip)
+    ln a0, (a0)
+    jr a0
+    unimp
+
+3:
+    mv s11, a0
+    mv s10, a1
+    j 2b
+
+10:
+    li a0, 0
+    tail exit
+
+    .size toplevel, . - toplevel
+
+    // <void *, void *> parse_line(
+    //      void **token_buf,
+    //      void *back_fill,
+    //      const char *line,
+    //      size_t len
+    // );
+    // Returns:
+    // - `a0`: `-1` if parse error, or new token buffer position
+    // - `a1`: New `back_fill` pointer
+    .type parse_line, @function
+parse_line:
+#define s_tok s0        // Token buffer pointer
+#define s_wptr s1       // Start of token
+#define s_wend s2       // End of word
+#define s_eol s3        // End of line
+#define s_lptr s4       // Length back-fill pointer
+#define s_errmsg s5     // Error message
+
+    addi sp, sp, -ALIGN(7 * NATIVE)
+    sn ra, (0 * NATIVE)(sp)
+    sn s_tok, (1 * NATIVE)(sp)
+    sn s_wptr, (2 * NATIVE)(sp)
+    sn s_wend, (3 * NATIVE)(sp)
+    sn s_eol, (4 * NATIVE)(sp)
+    sn s_lptr, (5 * NATIVE)(sp)
+    sn s_errmsg, (6 * NATIVE)(sp)
+
+    mv s_tok, a0
+    mv s_lptr, a1
+    mv s_wptr, a2
+    add s_eol, s_wptr, a3
 .Lparse_token:
     beq s_eol, s_wptr, .Lline_done
 
@@ -245,20 +293,19 @@ toplevel:
     j .Lparse_error
 
 .Lline_done:
-    not a0, s_lptr
-    bnez a0, .Lparse_line
+    not a1, s_lptr
+    mv a0, s_tok
+    bnez a1, .Lparse_done // Continue line
 
-    la a0, token_buf
-    beq a0, s_tok, toplevel // Empty line
+    la a1, token_buf
+    li a0, -1
+    beq a1, s_tok, .Lparse_done // Empty line
 
     la a1, _f_ok
     sn a1, (s_tok)
     addi s_tok, s_tok, NATIVE
-
-    mv s_ip, a0
-    ln t0, (s_ip)
-    ln t0, (t0)
-    jr t0
+    mv a0, s_tok
+    j .Lparse_done
 
 .Lparse_error:
 1:
@@ -272,13 +319,19 @@ toplevel:
     li a0, '\n' ; call fiveth_putchar
     mv a0, s_errmsg
     call fiveth_puts
-    j toplevel
+    li a0, -1 // Indicate parse error
 
-.Lexit:
-    li a0, 0
-    tail exit
-
-    .size toplevel, . - toplevel
+.Lparse_done:
+    mv a1, s_lptr
+    ln ra, (0 * NATIVE)(sp)
+    ln s_tok, (1 * NATIVE)(sp)
+    ln s_wptr, (2 * NATIVE)(sp)
+    ln s_wend, (3 * NATIVE)(sp)
+    ln s_eol, (4 * NATIVE)(sp)
+    ln s_lptr, (5 * NATIVE)(sp)
+    ln s_errmsg, (6 * NATIVE)(sp)
+    addi sp, sp, ALIGN(7 * NATIVE)
+    ret
 
 #undef s_tok
 #undef s_wptr
@@ -286,6 +339,8 @@ toplevel:
 #undef s_eol
 #undef s_lptr
 #undef s_errmsg
+
+    .size parse_line, . - parse_line
 
     .type fiveth_puts, @function
 fiveth_puts:
