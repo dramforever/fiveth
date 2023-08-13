@@ -647,6 +647,57 @@ memcmp:
     call puts
     j toplevel
 
+lf_constant:
+    ln a0, (s_ip)
+    ln a0, (4 * NATIVE)(a0)
+    sn a0, (s_dsp)
+    addi s_dsp, s_dsp, NATIVE
+    next
+
+    .macro alu2 label, insn
+\label:
+    addi s_dsp, s_dsp, - NATIVE
+    ln a0, (-1 * NATIVE)(s_dsp)
+    ln a1, (0 * NATIVE)(s_dsp)
+    \insn a0, a0, a1
+    sn a0, (-1 * NATIVE)(s_dsp)
+    next
+    .endm
+
+    alu2 .Lf_add, add
+    alu2 .Lf_sub, sub
+    alu2 .Lf_mul, mul
+    alu2 .Lf_div, divu
+    alu2 .Lf_shl, sll
+    alu2 .Lf_shr, srl
+    alu2 .Lf_and, and
+    alu2 .Lf_or, or
+    alu2 .Lf_xor, xor
+
+    .macro alu1 label, insn
+\label:
+    ln a0, (-1 * NATIVE)(s_dsp)
+    \insn a0, a0
+    sn a0, (-1 * NATIVE)(s_dsp)
+    next
+    .endm
+
+    alu1 .Lf_neg, neg
+    alu1 .Lf_not, not
+
+.Lf_load:
+    ln a0, (-1 * NATIVE)(s_dsp)
+    ln a0, (a0)
+    sn a0, (-1 * NATIVE)(s_dsp)
+    next
+
+.Lf_store:
+    addi s_dsp, s_dsp, - 2 * NATIVE
+    ln a0, (0 * NATIVE)(s_dsp)
+    ln a1, (1 * NATIVE)(s_dsp)
+    sn a0, (a1)
+    next
+
     .section .rodata
 
     .macro defword name, strname, code, link=1000b
@@ -676,6 +727,33 @@ memcmp:
     defword _f_sdot, "s.", .Lf_sdot
     defword _f_execute, "execute", .Lf_execute
     defword _f_ok, "_ok", .Lf_ok
+
+    defword _f_add, "+", .Lf_add
+    defword _f_sub, "-", .Lf_sub
+    defword _f_mul, "*", .Lf_mul
+    defword _f_div, "/", .Lf_div
+    defword _f_and, "&", .Lf_and
+    defword _f_or, "|", .Lf_or
+    defword _f_xor, "^", .Lf_xor
+    defword _f_shl, "<<", .Lf_shl
+
+    defword _f_neg, "neg", .Lf_neg
+    defword _f_not, "not", .Lf_not
+
+    defword _f_load, "@", .Lf_load
+    defword _f_store, "!", .Lf_store
+
+    defword _f_native, "native", lf_constant
+        nbyte NATIVE
+
+    defword _f_lgnative, "lgnative", lf_constant
+        nbyte LGNATIVE
+
+    defword _f_of_last_word, "=last", lf_constant
+        nbyte last_word
+
+    defword _f_of_allot_pointer, "=here", lf_constant
+        nbyte allot_pointer
 
     .set _last_word, 1000b
 
