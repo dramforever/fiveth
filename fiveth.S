@@ -25,8 +25,7 @@
 
 #define s_dsp s0
 #define s_rsp s1
-#define s_here s2
-#define s_ip s3
+#define s_ip s2
 
     .macro defstring name, str
     .pushsection .rodata.str1.1, "aMS", @progbits, 1
@@ -60,8 +59,12 @@ fiveth_getchar:
     .global main
     .type main, @function
 main:
+    la a0, _last_word
+    sn a0, last_word, a1
+    la a0, allot_space
+    sn a0, allot_pointer, a1
+
     la s_dsp, data_stack
-    la s_here, allot_space
     tail toplevel
     .size main, . - main
 
@@ -608,8 +611,11 @@ space_table:
 
     // Global variables
     .section .sdata, "aw", @progbits
+    .balign NATIVE
 last_word:
-    nbyte _last_word
+    .zero NATIVE
+allot_pointer:
+    .zero NATIVE
 
     .section .bss
     .balign NATIVE
