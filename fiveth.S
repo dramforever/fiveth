@@ -140,19 +140,34 @@ parse_line:
 .Lparse_token:
     beq s_eol, s_wptr, .Lline_done
 
-    lbu a0, (s_wptr)
+    mv s_wend, s_wptr
+
+    lbu a0, (s_wend)
     li a1, '[' ; beq a0, a1, .Lhandle_list
     li a1, ']' ; beq a0, a1, .Lhandle_ret
 
+    // Check for negative number
+    addi a1, s_wend, 1
+    beq a1, s_eol, 1f
+    li a1, '-' ; bne a0, a1, 1f
+
+    lbu a0, 1(s_wend)
+    li a1, '0' ; bltu a0, a1, 1f
+    li a1, '9' ; bgtu a0, a1, 1f
+
+    li a4, -1
+    addi s_wend, s_wend, 1
+    j .Lhandle_number
+
+1:
+
+    // Check for positive number
     li a4, 0
     li a1, '0' ; bltu a0, a1, 1f
     li a1, '9' ; bleu a0, a1, .Lhandle_number
 
 1:
-
     // Parse word
-    mv s_wend, s_wptr
-1:
     lbu a0, (s_wend)
     beq s_wend, s_eol, .Lgot_token
     li a2, '[' ; beq a0, a2, .Lgot_token
@@ -221,19 +236,20 @@ parse_line:
     j .Lparse_token
 
 .Lhandle_number:
-    sub a0, s_eol, s_wptr
+    // a4 = 0 if no negative sign, -1 if negative sign
+    sub a0, s_eol, s_wend
     li a1, 2
     bltu a0, a1, .Lhandle_decimal
-    lbu a0, (s_wptr)
+    lbu a0, (s_wend)
     li a1, '0'
     bne a0, a1, .Lhandle_decimal
-    lbu a0, 1(s_wptr)
+    lbu a0, 1(s_wend)
     li a1, 'x'
     bne a0, a1, .Lhandle_decimal
 
     // Hex
     li a1, 0
-    addi s_wend, s_wptr, 2 // Skip 0x prefix
+    addi s_wend, s_wend, 2 // Skip 0x prefix
 1:
     beq s_wend, s_eol, .Lnumber_okay
     lbu a0, (s_wend)
@@ -255,7 +271,6 @@ parse_line:
 
 .Lhandle_decimal:
     li a1, 0
-    mv s_wend, s_wptr
 1:
     beq s_wend, s_eol, .Lnumber_okay
     lbu a0, (s_wend)
@@ -284,6 +299,10 @@ parse_line:
     beqz a2, .Linvalid_number
 
 .Lnumber_okay:
+    // Handle negative sign flag
+    xor a1, a1, a4
+    sub a1, a1, a4
+
     la a0, _f_lit
     sn a0, (s_tok)
     sn a1, NATIVE(s_tok)
