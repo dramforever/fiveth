@@ -148,6 +148,7 @@ parse_line:
     lbu a0, (s_wend)
     li a1, '[' ; beq a0, a1, .Lhandle_list
     li a1, ']' ; beq a0, a1, .Lhandle_ret
+    li a1, '"' ; beq a0, a1, .Lhandle_string
 
     // Check for negative number
     addi a1, s_wend, 1
@@ -236,6 +237,34 @@ parse_line:
     sn a1, (- NATIVE)(a0)
 
     addi s_wptr, s_wptr, 1
+    j .Lparse_token
+
+.Lhandle_string:
+    // Skip opening quote
+    addi s_wend, s_wend, 1
+    la a0, _f_litstring
+    sn a0, (s_tok)
+    addi s_tok, s_tok, 2 * NATIVE
+    mv a2, s_tok // Start of string
+1:
+    la_string s_errmsg, "Unterminated string"
+    beq s_wend, s_eol, .Lparse_error
+    lbu a0, (s_wend)
+    addi s_wend, s_wend, 1
+    li a1, '"' ; beq a0, a1, 2f
+    sb a0, (s_tok)
+    addi s_tok, s_tok, 1
+    j 1b
+
+2:
+    // Store string length
+    sub a3, s_tok, a2
+    sn a3, (-1 * NATIVE)(a2)
+
+    // Align token pointer
+    addi s_tok, s_tok, NATIVE - 1
+    andi s_tok, s_tok, ~ (NATIVE - 1)
+    mv s_wptr, s_wend
     j .Lparse_token
 
 .Lhandle_number:
@@ -344,7 +373,7 @@ parse_line:
     li a0, '^' ; call fiveth_putchar
     li a0, '\n' ; call fiveth_putchar
     mv a0, s_errmsg
-    call fiveth_puts
+    call puts
     li a0, -1 // Indicate parse error
 
 .Lparse_done:
@@ -368,8 +397,8 @@ parse_line:
 
     .size parse_line, . - parse_line
 
-    .type fiveth_puts, @function
-fiveth_puts:
+    .type puts, @function
+puts:
     addi sp, sp, - ALIGN(2 * NATIVE)
     sn ra, (0 * NATIVE)(sp)
     sn s0, (1 * NATIVE)(sp)
@@ -387,7 +416,7 @@ fiveth_puts:
     ln s0, (1 * NATIVE)(sp)
     addi sp, sp, ALIGN(2 * NATIVE)
     ret
-    .size fiveth_puts, . - fiveth_puts
+    .size puts, . - puts
 
     .type fiveth_getline, @function
 fiveth_getline:
@@ -416,6 +445,29 @@ fiveth_getline:
     addi sp, sp, ALIGN(3 * NATIVE)
     ret
     .size fiveth_getline, . - fiveth_getline
+
+    // void putstring(const char *str, size_t len);
+    .type putstring, @function
+putstring:
+    addi sp, sp, - ALIGN(NATIVE * 3)
+    sn ra, (0 * NATIVE)(sp)
+    sn s0, (1 * NATIVE)(sp)
+    sn s1, (2 * NATIVE)(sp)
+    mv s0, a0
+    add s1, a0, a1
+1:
+    beq s0, s1, 2f
+    lbu a0, (s0)
+    call fiveth_putchar
+    addi s0, s0, 1
+    j 1b
+2:
+    ln ra, (0 * NATIVE)(sp)
+    ln s0, (1 * NATIVE)(sp)
+    ln s1, (2 * NATIVE)(sp)
+    addi sp, sp, ALIGN(NATIVE * 3)
+    ret
+    .size putstring, . - putstring
 
     // void print_number(size_t num);
     .type print_number, @function
@@ -536,8 +588,21 @@ memcmp:
     sn a1, (s_dsp)
     addi s_dsp, s_dsp, NATIVE
     add s_ip, s_ip, a0
-    addi s_ip, s_ip, NATIVE
-    next
+    addi s_ip, s_ip, 2 * NATIVE
+    go
+
+.Lf_litstring:
+    ln a0, (1 * NATIVE)(s_ip)
+    addi a1, s_ip, 2 * NATIVE
+    sn a1, (0 * NATIVE)(s_dsp)
+    sn a0, (1 * NATIVE)(s_dsp)
+    addi s_dsp, s_dsp, 2 * NATIVE
+    // Align the length
+    addi a0, a0, NATIVE - 1
+    andi a0, a0, ~ (NATIVE - 1)
+    add s_ip, s_ip, a0
+    add s_ip, s_ip, 2 * NATIVE
+    go
 
 .Lf_ret:
     addi s_rsp, s_rsp, - NATIVE
@@ -560,6 +625,13 @@ memcmp:
     call print_number
     next
 
+.Lf_sdot:
+    addi s_dsp, s_dsp, - 2 * NATIVE
+    ln a0, (0 * NATIVE)(s_dsp)
+    ln a1, (1 * NATIVE)(s_dsp)
+    call putstring
+    next
+
 .Lf_execute:
     addi a0, s_ip, NATIVE
     sn a0, (s_rsp)
@@ -572,7 +644,7 @@ memcmp:
 
 .Lf_ok:
     la_string a0, " ok"
-    call fiveth_puts
+    call puts
     j toplevel
 
     .section .rodata
@@ -596,10 +668,12 @@ memcmp:
     .endm
 
     defword _f_data, "_data", .Lf_data, -1
+    defword _f_litstring, "_litstring", .Lf_litstring
     defword _f_ret, "_ret", .Lf_ret
     defword _f_nop, "_nop", .Lf_nop
     defword _f_lit, "_lit", .Lf_lit
     defword _f_dot, ".", .Lf_dot
+    defword _f_sdot, "s.", .Lf_sdot
     defword _f_execute, "execute", .Lf_execute
     defword _f_ok, "_ok", .Lf_ok
 
