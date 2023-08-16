@@ -141,11 +141,21 @@ parse_line:
     mv s_wptr, a2
     add s_eol, s_wptr, a3
 .Lparse_token:
+1:
     beq s_eol, s_wptr, .Lline_done
 
     mv s_wend, s_wptr
 
     lbu a0, (s_wend)
+
+    // Skip whitespace
+    addi s_wptr, s_wptr, 1
+    li a1, ' ' ; beq a0, a1, 1b
+    li a1, '\t' ; beq a0, a1, 1b
+    addi s_wptr, s_wptr, -1
+
+    // Check special characters
+
     li a1, '[' ; beq a0, a1, .Lhandle_list
     li a1, ']' ; beq a0, a1, .Lhandle_ret
     li a1, '"' ; beq a0, a1, .Lhandle_string
@@ -172,23 +182,17 @@ parse_line:
 
 1:
     // Parse word
-    lbu a0, (s_wend)
     beq s_wend, s_eol, .Lgot_token
+    lbu a0, (s_wend)
     li a2, '[' ; beq a0, a2, .Lgot_token
     li a2, ']' ; beq a0, a2, .Lgot_token
-    li a2, 0x20
-    bgtu a0, a2, 2f // Not whitespace if > 0x20
-    la a2, space_table
-    add a2, a2, a0
-    lbu a2, (a2)
-    bnez a2, .Lgot_whitespace
+    li a2, ' ' ; beq a0, a2, .Lgot_token
+    li a2, '\t' ; beq a0, a2, .Lgot_token
 2:
     // Not end of token, take character
     addi s_wend, s_wend, 1
     j 1b
-.Lgot_whitespace:
-    // Found end of token according to whitespace
-    beq s_wend, s_wptr, .Lonly_eot
+
 .Lgot_token:
     mv a0, s_wptr
     sub a1, s_wend, s_wptr
@@ -199,10 +203,6 @@ parse_line:
     sn a0, (s_tok)
     addi s_tok, s_tok, NATIVE
     mv s_wptr, s_wend
-    j .Lparse_token
-
-.Lonly_eot:
-    addi s_wptr, s_wptr, 1
     j .Lparse_token
 
     // List format: { list <n> ... ret }
@@ -323,12 +323,8 @@ parse_line:
 .Lend_number:
     li a2, '[' ; beq a0, a2, .Lnumber_okay
     li a2, ']' ; beq a0, a2, .Lnumber_okay
-    li a2, 0x20 ; bgt a0, a2, .Linvalid_number
-
-    la a2, space_table
-    add a2, a2, a0
-    lbu a2, (a2)
-    beqz a2, .Linvalid_number
+    li a2, ' ' ; beq a0, a2, .Lnumber_okay
+    li a2, '\t' ; bne a0, a2, .Linvalid_number
 
 .Lnumber_okay:
     // Handle negative sign flag
@@ -429,10 +425,11 @@ fiveth_getline:
 1:
     call fiveth_getchar
     bltz a0, 2f
+    li a1, '\n' ; beq a0, a1, 2f
+    li a1, '\r' ; beq a0, a1, 2f
     sb a0, (s1)
     addi s1, s1, 1
-    li a1, '\n' ; beq a0, a1, 2f
-    li a1, '\r' ; bne a0, a1, 1b
+    j 1b
 
 2:
     sub a0, s1, s0
@@ -756,10 +753,6 @@ lf_constant:
         nbyte allot_pointer
 
     .set _last_word, 1000b
-
-    // At offsets 0 through 0x20 (inclusive), 1 means is space, 0 means not
-space_table:
-    .byte 0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1
 
     // Global variables
     .section .sdata, "aw", @progbits
