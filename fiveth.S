@@ -425,8 +425,8 @@ fiveth_getline:
 1:
     call fiveth_getchar
     bltz a0, 2f
-    li a1, '\n' ; beq a0, a1, 2f
-    li a1, '\r' ; beq a0, a1, 2f
+    li a1, '\n' ; beq a0, a1, 3f
+    li a1, '\r' ; beq a0, a1, 3f
     sb a0, (s1)
     addi s1, s1, 1
     j 1b
@@ -436,6 +436,12 @@ fiveth_getline:
     // If read nothing return -1
     seqz a1, a0
     sub a0, a0, a1
+    j 10f
+
+3:
+    sub a0, s1, s0
+
+10:
     ln ra, (0 * NATIVE)(sp)
     ln s0, (1 * NATIVE)(sp)
     ln s1, (2 * NATIVE)(sp)
