@@ -46,7 +46,13 @@
     // void fiveth_putchar(char c);
     .type fiveth_putchar, @function
 fiveth_putchar:
-    tail putchar
+    addi sp, sp, - ALIGN(1 * NATIVE)
+    sn ra, (sp)
+    call putchar
+    ln ra, (sp)
+    addi sp, sp, ALIGN(1 * NATIVE)
+    ld a0, stdout
+    tail fflush
     .size fiveth_putchar, . - fiveth_putchar
 
     // int fiveth_getchar();
