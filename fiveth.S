@@ -950,79 +950,62 @@ lf_definition:
         nbyte _f_add
         nbyte _f_return
 
+    defword _f_last, "last", lf_definition
+        nbyte _f_of_last
+        nbyte _f_load
+        nbyte _f_return
+
+    defword _f_rawdef, "rawdef", lf_definition
+        // ( p:name n:name p:code -- )
+        nbyte _f_nrot
+        // ( p:code p:name n:name -- )
+        nbyte _f_here
+        nbyte _f_over
+        // ( p:code p:name n:name p:name' n:name -- )
+        nbyte _f_dswap
+        // ( p:code p:name' n:name p:name n:name -- )
+        nbyte _f_commit
+        // ( p:code p:name n:name -- )
+        nbyte _f_swap
+        nbyte _f_rot
+        // ( n:name p:name p:code -- )
+
+        nbyte _f_align
+        nbyte _f_comma
+        nbyte _f_last
+        nbyte _f_comma
+        nbyte _f_comma
+        nbyte _f_comma
+
+        nbyte _f_lit
+        nbyte -4
+        nbyte _f_here
+        nbyte _f_n_add
+        nbyte _f_of_last
+        // ( p:word p:last -- )
+        nbyte _f_store
+
+        nbyte _f_return
+
     defword _f_define, "define", lf_definition
         // ( p:name n:name p:list n:list -- )
         nbyte _f_dswap
         // ( p:list n:list p:name n:name )
-        nbyte _f_dup
-        nbyte _f_here
-        nbyte _f_dswap
-        // ( p:list n:list n:name p:name' p:name n:name )
-        nbyte _f_commit
-        nbyte _f_align
-        // ( p:list n:list n:name p:name' )
-
         nbyte _f_of_definition
-        nbyte _f_comma
-
-        nbyte _f_of_last
-        nbyte _f_load
-        nbyte _f_comma
-
-        // ( p:list n:list n:name p:name' )
-        nbyte _f_comma
-        // ( p:list n:list n:name )
-        nbyte _f_comma
+        nbyte _f_rawdef
         // ( p:list n:list )
-
-        nbyte _f_lit
-        nbyte -4
-        nbyte _f_here
-        nbyte _f_n_add
-        nbyte _f_nrot
-
-        // ( p:word p:list n:list )
         nbyte _f_commit
-        // ( p:word )
-
-        nbyte _f_of_last
-        nbyte _f_store
         nbyte _f_return
 
     defword _f_var, "var", lf_definition
-        // ( p:name n:name -- )
-        nbyte _f_dup
-        nbyte _f_here
-        nbyte _f_dswap
-        nbyte _f_commit
-
-        // ( n:name p:name' )
-        nbyte _f_align
         nbyte _f_of_constant
-        nbyte _f_comma
+        nbyte _f_rawdef
 
-        nbyte _f_of_last
-        nbyte _f_load
-        nbyte _f_comma
-
-        // ( n:name p:name' )
-        nbyte _f_comma
-        // ( n:name )
-        nbyte _f_comma
-        // ( )
-
-        nbyte _f_lit
-        nbyte -4
-        nbyte _f_here
-        nbyte _f_n_add
-        nbyte _f_of_last
-        nbyte _f_store
-
-        nbyte _f_here
         nbyte _f_native
+        nbyte _f_here
         nbyte _f_add
+        // ( p ) Points to data space pointer after definition
         nbyte _f_comma
-
         nbyte _f_return
 
     .set _last_word, 1000b
