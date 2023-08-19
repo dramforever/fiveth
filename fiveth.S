@@ -859,6 +859,9 @@ lf_definition:
     defword _f_of_definition, "=_definition", lf_constant
         nbyte lf_definition
 
+    defword _f_of_constant, "=_constant", lf_constant
+        nbyte lf_constant
+
     defword _f_nrot, "-rot", lf_definition
         // ( a b c -- c a b )
         nbyte _f_rot
@@ -986,6 +989,41 @@ lf_definition:
         nbyte _f_store
         nbyte _f_return
 
+    defword _f_var, "var", lf_definition
+        // ( p:name n:name -- )
+        nbyte _f_dup
+        nbyte _f_here
+        nbyte _f_dswap
+        nbyte _f_commit
+
+        // ( n:name p:name' )
+        nbyte _f_align
+        nbyte _f_of_constant
+        nbyte _f_comma
+
+        nbyte _f_of_last
+        nbyte _f_load
+        nbyte _f_comma
+
+        // ( n:name p:name' )
+        nbyte _f_comma
+        // ( n:name )
+        nbyte _f_comma
+        // ( )
+
+        nbyte _f_lit
+        nbyte -4
+        nbyte _f_here
+        nbyte _f_n_add
+        nbyte _f_of_last
+        nbyte _f_store
+
+        nbyte _f_here
+        nbyte _f_native
+        nbyte _f_add
+        nbyte _f_comma
+
+        nbyte _f_return
 
     .set _last_word, 1000b
 
