@@ -215,7 +215,7 @@ parse_line:
 
 .Lhandle_list:
     // Parse '['
-    la a0, _f_data
+    la a0, _f_litlist
     sn a0, (s_tok)
     // Push into refill linked list
     sn s_lptr, NATIVE(s_tok)
@@ -375,7 +375,7 @@ parse_line:
     li a0, '^' ; call fiveth_putchar
     li a0, '\n' ; call fiveth_putchar
     mv a0, s_errmsg
-    call puts
+    call fiveth_puts
     li a0, -1 // Indicate parse error
 
 .Lparse_done:
@@ -399,8 +399,8 @@ parse_line:
 
     .size parse_line, . - parse_line
 
-    .type puts, @function
-puts:
+    .type fiveth_puts, @function
+fiveth_puts:
     addi sp, sp, - ALIGN(2 * NATIVE)
     sn ra, (0 * NATIVE)(sp)
     sn s0, (1 * NATIVE)(sp)
@@ -418,7 +418,7 @@ puts:
     ln s0, (1 * NATIVE)(sp)
     addi sp, sp, ALIGN(2 * NATIVE)
     ret
-    .size puts, . - puts
+    .size fiveth_puts, . - fiveth_puts
 
     .type fiveth_getline, @function
 fiveth_getline:
@@ -555,7 +555,6 @@ find_word:
     addi sp, sp, ALIGN(NATIVE * 4)
     ret
 
-    .weak memcmp
     .type memcmp, @function
 memcmp:
 1:
@@ -578,6 +577,20 @@ memcmp:
     li a0, 1 ; ret
     .size memcmp, . - memcmp
 
+    .type memcpy, @function
+memcpy:
+    add a2, a0, a2
+1:
+    beq a0, a2, 2f
+    lb a3, (a1)
+    sb a3, (a0)
+    addi a0, a0, 1
+    addi a1, a1, 1
+    j 1b
+2:
+    ret
+    .size memcpy, . - memcpy
+
     .macro go
     ln a0, (s_ip)
     ln a0, (a0)
@@ -591,11 +604,12 @@ memcmp:
 
     // Native code for words
 
-.Lf_data:
+.Lf_litlist:
     ln a0, (1 * NATIVE)(s_ip)
-    addi a1, s_ip, NATIVE
-    sn a1, (s_dsp)
-    addi s_dsp, s_dsp, NATIVE
+    addi a1, s_ip, 2 * NATIVE
+    sn a1, (0 * NATIVE)(s_dsp)
+    sn a0, (1 * NATIVE)(s_dsp)
+    addi s_dsp, s_dsp, 2 * NATIVE
     add s_ip, s_ip, a0
     addi s_ip, s_ip, 2 * NATIVE
     go
@@ -646,14 +660,13 @@ memcmp:
     sn a0, (s_rsp)
     addi s_rsp, s_rsp, NATIVE
 
-    addi s_dsp, s_dsp, - NATIVE
+    addi s_dsp, s_dsp, - 2 * NATIVE
     ln s_ip, (s_dsp)
-    addi s_ip, s_ip, NATIVE // Skip length field
     go
 
 .Lf_ok:
     la_string a0, " ok"
-    call puts
+    call fiveth_puts
     j toplevel
 
 lf_constant:
@@ -695,6 +708,17 @@ lf_constant:
     sn a2, (-2 * NATIVE)(s_dsp)
     next
 
+.Lf_dswap:
+    ln a0, (-4 * NATIVE)(s_dsp)
+    ln a1, (-3 * NATIVE)(s_dsp)
+    ln a2, (-2 * NATIVE)(s_dsp)
+    ln a3, (-1 * NATIVE)(s_dsp)
+    sn a0, (-2 * NATIVE)(s_dsp)
+    sn a1, (-1 * NATIVE)(s_dsp)
+    sn a2, (-4 * NATIVE)(s_dsp)
+    sn a3, (-3 * NATIVE)(s_dsp)
+    next
+
     .macro alu2 label, insn
 \label:
     addi s_dsp, s_dsp, - NATIVE
@@ -725,6 +749,21 @@ lf_constant:
 
     alu1 .Lf_neg, neg
     alu1 .Lf_not, not
+
+.Lf_aligned:
+    ln a0, (-1 * NATIVE)(s_dsp)
+    addi a0, a0, NATIVE - 1
+    andi a0, a0, ~ (NATIVE - 1)
+    sn a0, (-1 * NATIVE)(s_dsp)
+    next
+
+.Lf_rawmove:
+    addi s_dsp, s_dsp, -3 * NATIVE
+    ln a0, (0 * NATIVE)(s_dsp)
+    ln a1, (1 * NATIVE)(s_dsp)
+    ln a2, (2 * NATIVE)(s_dsp)
+    call memcpy
+    next
 
 .Lf_load:
     ln a0, (-1 * NATIVE)(s_dsp)
@@ -768,7 +807,7 @@ lf_definition:
     nbyte 92b - 91b - 1 // Length without NUL-terminator
     .endm
 
-    defword _f_data, "_data", .Lf_data, -1
+    defword _f_litlist, "_litlist", .Lf_litlist, -1
     defword _f_litstring, "_litstring", .Lf_litstring
     defword _f_return, "_return", .Lf_return
     defword _f_nop, "_nop", .Lf_nop
@@ -784,6 +823,8 @@ lf_definition:
     defword _f_over, "over", .Lf_over   // ( a b -- a b a )
     defword _f_rot, "rot", .Lf_rot      // ( a b c -- b c a )
 
+    defword _f_dswap, "dswap", .Lf_dswap // ( a b c d -- c d a b )
+
     defword _f_add, "+", .Lf_add
     defword _f_sub, "-", .Lf_sub
     defword _f_mul, "*", .Lf_mul
@@ -796,6 +837,9 @@ lf_definition:
 
     defword _f_neg, "neg", .Lf_neg
     defword _f_not, "not", .Lf_not
+
+    defword _f_aligned, "aligned", .Lf_aligned
+    defword _f_rawmove, "rawmove", .Lf_rawmove
 
     defword _f_load, "@", .Lf_load
     defword _f_store, "!", .Lf_store
@@ -811,6 +855,9 @@ lf_definition:
 
     defword _f_of_here, "=here", lf_constant
         nbyte allot_pointer
+
+    defword _f_of_definition, "=_definition", lf_constant
+        nbyte lf_definition
 
     defword _f_nrot, "-rot", lf_definition
         // ( a b c -- c a b )
@@ -830,8 +877,20 @@ lf_definition:
         nbyte _f_over
         nbyte _f_return
 
+    defword _f_ddup, "ddup", lf_definition
+        // ( a b -- a b a b )
+        nbyte _f_over
+        nbyte _f_over
+        nbyte _f_return
+
+    defword _f_ddrop, "ddrop", lf_definition
+        // ( a b -- )
+        nbyte _f_drop
+        nbyte _f_drop
+        nbyte _f_return
+
     defword _f_add_store, "+!", lf_definition
-        // ( value addr -- )
+        // ( n p -- )
         nbyte _f_dup
         nbyte _f_load
         nbyte _f_rot
@@ -840,14 +899,93 @@ lf_definition:
         nbyte _f_store
         nbyte _f_return
 
-    defword _f_allot, "allot", lf_definition
-        // ( size -- addr )
+    defword _f_here, "here", lf_definition
         nbyte _f_of_here
         nbyte _f_load
-        nbyte _f_swap
+        nbyte _f_return
+
+    defword _f_allot, "allot", lf_definition
+        // ( n -- )
         nbyte _f_of_here
         nbyte _f_add_store
         nbyte _f_return
+
+    defword _f_align, "align", lf_definition
+        nbyte _f_of_here
+        nbyte _f_load
+        nbyte _f_aligned
+        nbyte _f_of_here
+        nbyte _f_store
+        nbyte _f_return
+
+    defword _f_commit, "commit", lf_definition
+        // ( p n -- )
+        nbyte _f_tuck
+        // ( n p n )
+        nbyte _f_here
+        nbyte _f_nrot
+        nbyte _f_rawmove
+        // ( n )
+        nbyte _f_allot
+        nbyte _f_return
+
+    defword _f_comma, ",", lf_definition
+        // ( n -- ) Append native to data space
+        nbyte _f_native
+        nbyte _f_allot
+        nbyte _f_here
+        nbyte _f_native
+        nbyte _f_sub
+        nbyte _f_store
+        nbyte _f_return
+
+    defword _f_n_add, "n+", lf_definition
+        // ( n1 n2 -- {n1 * NATIVE + n2} )
+        nbyte _f_swap
+        nbyte _f_native
+        nbyte _f_mul
+        nbyte _f_add
+        nbyte _f_return
+
+    defword _f_define, "define", lf_definition
+        // ( p:name n:name p:list n:list -- )
+        nbyte _f_dswap
+        // ( p:list n:list p:name n:name )
+        nbyte _f_dup
+        nbyte _f_here
+        nbyte _f_dswap
+        // ( p:list n:list n:name p:name' p:name n:name )
+        nbyte _f_commit
+        nbyte _f_align
+        // ( p:list n:list n:name p:name' )
+
+        nbyte _f_of_definition
+        nbyte _f_comma
+
+        nbyte _f_of_last
+        nbyte _f_load
+        nbyte _f_comma
+
+        // ( p:list n:list n:name p:name' )
+        nbyte _f_comma
+        // ( p:list n:list n:name )
+        nbyte _f_comma
+        // ( p:list n:list )
+
+        nbyte _f_lit
+        nbyte -4
+        nbyte _f_here
+        nbyte _f_n_add
+        nbyte _f_nrot
+
+        // ( p:word p:list n:list )
+        nbyte _f_commit
+        // ( p:word )
+
+        nbyte _f_of_last
+        nbyte _f_store
+        nbyte _f_return
+
 
     .set _last_word, 1000b
 
