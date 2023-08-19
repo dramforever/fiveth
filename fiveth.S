@@ -663,6 +663,38 @@ lf_constant:
     addi s_dsp, s_dsp, NATIVE
     next
 
+.Lf_dup:
+    ln a0, (-1 * NATIVE)(s_dsp)
+    sn a0, (s_dsp)
+    addi s_dsp, s_dsp, NATIVE
+    next
+
+.Lf_drop:
+    addi s_dsp, s_dsp, - NATIVE
+    next
+
+.Lf_swap:
+    ln a0, (-2 * NATIVE)(s_dsp)
+    ln a1, (-1 * NATIVE)(s_dsp)
+    sn a0, (-1 * NATIVE)(s_dsp)
+    sn a1, (-2 * NATIVE)(s_dsp)
+    next
+
+.Lf_over:
+    ln a0, (-2 * NATIVE)(s_dsp)
+    sn a0, (s_dsp)
+    addi s_dsp, s_dsp, NATIVE
+    next
+
+.Lf_rot:
+    ln a0, (-3 * NATIVE)(s_dsp)
+    ln a1, (-2 * NATIVE)(s_dsp)
+    ln a2, (-1 * NATIVE)(s_dsp)
+    sn a0, (-1 * NATIVE)(s_dsp)
+    sn a1, (-3 * NATIVE)(s_dsp)
+    sn a2, (-2 * NATIVE)(s_dsp)
+    next
+
     .macro alu2 label, insn
 \label:
     addi s_dsp, s_dsp, - NATIVE
@@ -737,6 +769,12 @@ lf_constant:
     defword _f_execute, "execute", .Lf_execute
     defword _f_ok, "_ok", .Lf_ok
 
+    defword _f_dup, "dup", .Lf_dup
+    defword _f_drop, "drop", .Lf_drop
+    defword _f_swap, "swap", .Lf_swap
+    defword _f_over, "over", .Lf_over
+    defword _f_rot, "rot", .Lf_rot
+
     defword _f_add, "+", .Lf_add
     defword _f_sub, "-", .Lf_sub
     defword _f_mul, "*", .Lf_mul
@@ -745,6 +783,7 @@ lf_constant:
     defword _f_or, "|", .Lf_or
     defword _f_xor, "^", .Lf_xor
     defword _f_shl, "<<", .Lf_shl
+    defword _f_shr, ">>", .Lf_shr
 
     defword _f_neg, "neg", .Lf_neg
     defword _f_not, "not", .Lf_not
