@@ -232,7 +232,7 @@ parse_line:
     la_string s_errmsg, "Mismatched closing bracket"
     beqz a1, .Lparse_error
 
-    la a0, _f_ret
+    la a0, _f_return
     sn a0, (s_tok)
     addi s_tok, s_tok, NATIVE
 
@@ -613,7 +613,7 @@ memcmp:
     add s_ip, s_ip, 2 * NATIVE
     go
 
-.Lf_ret:
+.Lf_return:
     addi s_rsp, s_rsp, - NATIVE
     ln s_ip, (s_rsp)
     go
@@ -739,6 +739,15 @@ lf_constant:
     sn a0, (a1)
     next
 
+lf_definition:
+    addi a0, s_ip, NATIVE
+    sn a0, (s_rsp)
+    addi s_rsp, s_rsp, NATIVE
+
+    ln s_ip, (s_ip)
+    addi s_ip, s_ip, 4 * NATIVE
+    go
+
     .section .rodata
 
     .macro defword name, strname, code, link=1000b
@@ -761,7 +770,7 @@ lf_constant:
 
     defword _f_data, "_data", .Lf_data, -1
     defword _f_litstring, "_litstring", .Lf_litstring
-    defword _f_ret, "_ret", .Lf_ret
+    defword _f_return, "_return", .Lf_return
     defword _f_nop, "_nop", .Lf_nop
     defword _f_lit, "_lit", .Lf_lit
     defword _f_dot, ".", .Lf_dot
@@ -797,11 +806,45 @@ lf_constant:
     defword _f_lgnative, "lgnative", lf_constant
         nbyte LGNATIVE
 
-    defword _f_of_last_word, "=last", lf_constant
+    defword _f_of_last, "=last", lf_constant
         nbyte last_word
 
-    defword _f_of_allot_pointer, "=here", lf_constant
+    defword _f_of_here, "=here", lf_constant
         nbyte allot_pointer
+
+    defword _f_nrot, "-rot", lf_definition
+        nbyte _f_rot
+        nbyte _f_rot
+        nbyte _f_return
+
+    defword _f_nip, "nip", lf_definition
+        nbyte _f_swap
+        nbyte _f_drop
+        nbyte _f_return
+
+    defword _f_tuck, "tuck", lf_definition
+        nbyte _f_swap
+        nbyte _f_over
+        nbyte _f_return
+
+    defword _f_add_store, "+!", lf_definition
+        // ( value addr -- )
+        nbyte _f_dup
+        nbyte _f_load
+        nbyte _f_rot
+        nbyte _f_add
+        nbyte _f_swap
+        nbyte _f_store
+        nbyte _f_return
+
+    defword _f_allot, "allot", lf_definition
+        // ( size -- addr )
+        nbyte _f_of_here
+        nbyte _f_load
+        nbyte _f_swap
+        nbyte _f_of_here
+        nbyte _f_add_store
+        nbyte _f_return
 
     .set _last_word, 1000b
 
