@@ -778,11 +778,11 @@ lf_definition:
     defword _f_execute, "execute", .Lf_execute
     defword _f_ok, "_ok", .Lf_ok
 
-    defword _f_dup, "dup", .Lf_dup
-    defword _f_drop, "drop", .Lf_drop
-    defword _f_swap, "swap", .Lf_swap
-    defword _f_over, "over", .Lf_over
-    defword _f_rot, "rot", .Lf_rot
+    defword _f_dup, "dup", .Lf_dup      // ( a -- a a )
+    defword _f_drop, "drop", .Lf_drop   // ( a -- )
+    defword _f_swap, "swap", .Lf_swap   // ( a b -- b a )
+    defword _f_over, "over", .Lf_over   // ( a b -- a b a )
+    defword _f_rot, "rot", .Lf_rot      // ( a b c -- b c a )
 
     defword _f_add, "+", .Lf_add
     defword _f_sub, "-", .Lf_sub
@@ -813,16 +813,19 @@ lf_definition:
         nbyte allot_pointer
 
     defword _f_nrot, "-rot", lf_definition
+        // ( a b c -- c a b )
         nbyte _f_rot
         nbyte _f_rot
         nbyte _f_return
 
     defword _f_nip, "nip", lf_definition
+        // ( a b -- b )
         nbyte _f_swap
         nbyte _f_drop
         nbyte _f_return
 
     defword _f_tuck, "tuck", lf_definition
+        // ( a b -- b a b )
         nbyte _f_swap
         nbyte _f_over
         nbyte _f_return
