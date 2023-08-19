@@ -52,7 +52,7 @@ fiveth_putchar:
     call putchar
     ln ra, (sp)
     addi sp, sp, ALIGN(1 * NATIVE)
-    ld a0, stdout
+    ln a0, stdout
     tail fflush
     .size fiveth_putchar, . - fiveth_putchar
 
