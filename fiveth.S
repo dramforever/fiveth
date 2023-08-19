@@ -24,8 +24,9 @@
 #define ALIGN(x) (((x) + 0xf) & ~0xf)
 
 #define s_dsp s0
-#define s_rsp s1
-#define s_ip s2
+#define s_ip s1
+#define s_rsp s2
+#define s_rfp s3
 
     .macro defstring name, str
     .pushsection .rodata.str1.1, "aMS", @progbits, 1
@@ -97,6 +98,7 @@ toplevel:
     bnez a2, 3f // Line continues
 
     la s_rsp, return_stack
+    mv s_rfp, s_rsp
     la s_ip, token_buf
     ln a0, (s_ip)
     ln a0, (a0)
@@ -627,11 +629,6 @@ memcpy:
     add s_ip, s_ip, 2 * NATIVE
     go
 
-.Lf_return:
-    addi s_rsp, s_rsp, - NATIVE
-    ln s_ip, (s_rsp)
-    go
-
 .Lf_nop:
     next
 
@@ -654,15 +651,6 @@ memcpy:
     ln a1, (1 * NATIVE)(s_dsp)
     call putstring
     next
-
-.Lf_execute:
-    addi a0, s_ip, NATIVE
-    sn a0, (s_rsp)
-    addi s_rsp, s_rsp, NATIVE
-
-    addi s_dsp, s_dsp, - 2 * NATIVE
-    ln s_ip, (s_dsp)
-    go
 
 .Lf_ok:
     la_string a0, " ok"
@@ -717,6 +705,68 @@ lf_constant:
     sn a1, (-1 * NATIVE)(s_dsp)
     sn a2, (-4 * NATIVE)(s_dsp)
     sn a3, (-3 * NATIVE)(s_dsp)
+    next
+
+    .macro enter_frame
+    sn s_rfp, (0 * NATIVE)(s_rsp)
+    sn s_ip, (1 * NATIVE)(s_rsp)
+    addi s_rsp, s_rsp, 2 * NATIVE
+    mv s_rfp, s_rsp
+    .endm
+
+.Lf_execute:
+    addi s_ip, s_ip, NATIVE
+    enter_frame
+    addi s_dsp, s_dsp, - 2 * NATIVE
+    ln s_ip, (s_dsp)
+    go
+
+lf_definition:
+    addi s_ip, s_ip, NATIVE
+    enter_frame
+    ln s_ip, (-1 * NATIVE)(s_ip)
+    addi s_ip, s_ip, 4 * NATIVE
+    go
+
+.Lf_return:
+    addi s_rsp, s_rfp, -2 * NATIVE
+    ln s_rfp, (0 * NATIVE)(s_rsp)
+    ln s_ip, (1 * NATIVE)(s_rsp)
+    go
+
+.Lf_lhere:
+    sn s_rsp, (s_dsp)
+    addi s_dsp, s_dsp, NATIVE
+    next
+
+.Lf_lallot:
+    addi s_dsp, s_dsp, -1 * NATIVE
+    ln a0, (s_dsp)
+    add s_rsp, s_rsp, a0
+    next
+
+.Lf_nlallot:
+    addi s_dsp, s_dsp, -1 * NATIVE
+    ln a0, (s_dsp)
+    slli a0, a0, LGNATIVE
+    add s_rsp, s_rsp, a0
+    next
+
+.Lf_load_l:
+    ln a0, (-1 * NATIVE)(s_dsp)
+    slli a0, a0, LGNATIVE
+    add a0, a0, s_rfp
+    ln a0, (a0)
+    sn a0, (-1 * NATIVE)(s_dsp)
+    next
+
+.Lf_store_l:
+    addi s_dsp, s_dsp, -2 * NATIVE
+    ln a0, (0 * NATIVE)(s_dsp)
+    ln a1, (1 * NATIVE)(s_dsp)
+    slli a1, a1, LGNATIVE
+    add a1, a1, s_rfp
+    sn a0, (a1)
     next
 
     .macro alu2 label, insn
@@ -778,15 +828,6 @@ lf_constant:
     sn a0, (a1)
     next
 
-lf_definition:
-    addi a0, s_ip, NATIVE
-    sn a0, (s_rsp)
-    addi s_rsp, s_rsp, NATIVE
-
-    ln s_ip, (s_ip)
-    addi s_ip, s_ip, 4 * NATIVE
-    go
-
     .section .rodata
 
     .macro defword name, strname, code, link=1000b
@@ -840,6 +881,12 @@ lf_definition:
 
     defword _f_aligned, "aligned", .Lf_aligned
     defword _f_rawmove, "rawmove", .Lf_rawmove
+
+    defword _f_lhere, "lhere", .Lf_lhere
+    defword _f_lallot, "lallot", .Lf_lallot
+    defword _f_nlallot, "nlallot", .Lf_nlallot
+    defword _f_n_load_l, "@l", .Lf_load_l
+    defword _f_n_store_l, "!l", .Lf_store_l
 
     defword _f_load, "@", .Lf_load
     defword _f_store, "!", .Lf_store
