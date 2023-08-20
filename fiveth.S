@@ -480,9 +480,67 @@ putstring:
     ret
     .size putstring, . - putstring
 
-    // void print_number(size_t num);
-    .type print_number, @function
-print_number:
+#if __riscv_xlen == 64
+    .pushsection .sdata, "aw", @progbits
+.Ldiv10_const:
+    .8byte 0xcccccccccccccccd
+    .popsection
+#endif
+
+    // void print_decimal(size_t num);
+    .type print_decimal, @function
+print_decimal:
+    addi sp, sp, - ALIGN(32 + NATIVE)
+    sn ra, 32(sp)
+#if __riscv_xlen == 64
+    ld t0, .Ldiv10_const
+#else
+    li t0, 0xcccccccd
+#endif
+
+    addi a1, sp, 32
+    mv t1, a0
+
+    srai a2, a0, __riscv_xlen - 1
+    xor a0, a0, a2
+    sub a0, a0, a2
+    // a0 = abs(num)
+1:
+    mulhu a2, a0, t0
+    srli a2, a2, 3
+    // a2 = a0 / 10
+    slli a3, a2, 3
+    slli a4, a2, 1
+    add a3, a3, a4
+    // a3 = (a0 / 10) * 10
+    sub a3, a0, a3
+    // a3 = a0 % 10
+    addi a3, a3, '0'
+    addi a1, a1, -1
+    sb a3, (a1)
+
+    mv a0, a2
+    bnez a0, 1b
+
+    bgez t1, 1f
+    addi a1, a1, -1
+    li a0, '-'
+    sb a0, (a1)
+1:
+
+    mv a0, a1
+    addi a1, sp, 32
+    sub a1, a1, a0
+    call putstring
+
+    ln ra, 32(sp)
+    addi sp, sp, ALIGN(32 + NATIVE)
+    ret
+    .size print_decimal, . - print_decimal
+
+    // void print_hex(size_t num);
+    .type print_hex, @function
+print_hex:
     addi sp, sp, - ALIGN(NATIVE * 3)
     sn ra, (0 * NATIVE)(sp)
     sn s0, (1 * NATIVE)(sp)
@@ -506,14 +564,12 @@ print_number:
     addi s1, s1, -4
     bgez s1, 1b
 
-    li a0, ' ' ; call fiveth_putchar
-
     ln ra, (0 * NATIVE)(sp)
     ln s0, (1 * NATIVE)(sp)
     ln s1, (2 * NATIVE)(sp)
     addi sp, sp, ALIGN(NATIVE * 3)
 
-    .size print_number, . - print_number
+    .size print_hex, . - print_hex
 
 #define o_code (0 * NATIVE)
 #define o_link (1 * NATIVE)
@@ -642,7 +698,9 @@ memcpy:
 .Lf_dot:
     addi s_dsp, s_dsp, - NATIVE
     ln a0, (s_dsp)
-    call print_number
+    call print_decimal
+    li a0, ' '
+    call fiveth_putchar
     next
 
 .Lf_sdot:
@@ -653,8 +711,15 @@ memcpy:
     next
 
 .Lf_ok:
-    la_string a0, " ok"
-    call fiveth_puts
+    la_string a0, " ok "
+    li a1, 4
+    call putstring
+    la a0, data_stack
+    sub a0, s_dsp, a0
+    srai a0, a0, LGNATIVE
+    call print_decimal
+    li a0, '\n'
+    call fiveth_putchar
     j toplevel
 
 lf_constant:
