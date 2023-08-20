@@ -1161,6 +1161,36 @@ lf_definition:
 2:
         nbyte _f_return
 
+    defword _f_repeat, "repeat", lf_definition
+        nbyte _f_lit, 1, _f_nlallot
+        nbyte _f_lit, 0, _f_store_l
+1:
+        nbyte _f_lit, 0, _f_load_l, _f_execute
+        nbyte _f_jif, 1b
+
+        nbyte _f_return
+
+    defword _f_count, "count", lf_definition
+        // ( n p -- )
+        nbyte _f_lit, 3, _f_nlallot
+        nbyte _f_lit, 2, _f_store_l
+        nbyte _f_lit, 1, _f_store_l
+        nbyte _f_lit, 0, _f_lit, 0, _f_store_l
+1:
+        nbyte _f_lit, 0, _f_load_l
+        nbyte _f_lit, 1, _f_load_l
+        nbyte _f_over, _f_sub, _f_eqz
+        nbyte _f_jif, 2f
+
+        nbyte _f_lit, 2, _f_load_l, _f_execute
+
+        nbyte _f_lit, 0, _f_load_l
+        nbyte _f_lit, 1, _f_add
+        nbyte _f_lit, 0, _f_store_l
+        nbyte _f_jump, 1b
+2:
+        nbyte _f_drop, _f_return
+
     .set _last_word, 1000b
 
     // Global variables
