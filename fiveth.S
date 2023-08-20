@@ -664,10 +664,9 @@ memcpy:
 
 .Lf_litlist:
     ln a0, (1 * NATIVE)(s_ip)
-    addi a1, s_ip, 2 * NATIVE
-    sn a1, (0 * NATIVE)(s_dsp)
-    sn a0, (1 * NATIVE)(s_dsp)
-    addi s_dsp, s_dsp, 2 * NATIVE
+    addi a1, s_ip, NATIVE
+    sn a1, (s_dsp)
+    addi s_dsp, s_dsp, NATIVE
     add s_ip, s_ip, a0
     addi s_ip, s_ip, 2 * NATIVE
     go
@@ -779,10 +778,10 @@ lf_constant:
     mv s_rfp, s_rsp
     .endm
 
-.Lf_execute:
+.Lf_rawexecute:
     addi s_ip, s_ip, NATIVE
     enter_frame
-    addi s_dsp, s_dsp, - 2 * NATIVE
+    addi s_dsp, s_dsp, - NATIVE
     ln s_ip, (s_dsp)
     go
 
@@ -920,7 +919,7 @@ lf_definition:
     defword _f_lit, "_lit", .Lf_lit
     defword _f_dot, ".", .Lf_dot
     defword _f_sdot, "s.", .Lf_sdot
-    defword _f_execute, "execute", .Lf_execute
+    defword _f_rawexecute, "rawexecute", .Lf_rawexecute
     defword _f_ok, "_ok", .Lf_ok
 
     defword _f_dup, "dup", .Lf_dup      // ( a -- a a )
@@ -1067,6 +1066,12 @@ lf_definition:
         nbyte _f_load
         nbyte _f_return
 
+    defword _f_execute, "execute", lf_definition
+        nbyte _f_native
+        nbyte _f_add
+        nbyte _f_rawexecute
+        nbyte _f_return
+
     defword _f_rawdef, "rawdef", lf_definition
         // ( p:name n:name p:code -- )
         nbyte _f_nrot
@@ -1099,13 +1104,23 @@ lf_definition:
 
         nbyte _f_return
 
+    defword _f_rawlist, "rawlist", lf_definition
+        // ( p:list -- p:payload n:payload )
+        nbyte _f_dup
+        nbyte _f_native
+        nbyte _f_add
+        nbyte _f_swap
+        nbyte _f_load
+        nbyte _f_return
+
     defword _f_define, "define", lf_definition
-        // ( p:name n:name p:list n:list -- )
-        nbyte _f_dswap
-        // ( p:list n:list p:name n:name )
+        // ( p:name n:name p:list -- )
+        nbyte _f_nrot
+        // ( p:list p:name n:name )
         nbyte _f_of_definition
         nbyte _f_rawdef
-        // ( p:list n:list )
+        // ( p:list )
+        nbyte _f_rawlist
         nbyte _f_commit
         nbyte _f_return
 
