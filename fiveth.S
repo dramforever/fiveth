@@ -987,150 +987,114 @@ lf_definition:
 
     defword _f_tuck, "tuck", lf_definition
         // ( a b -- b a b )
-        nbyte _f_swap
-        nbyte _f_over
+        nbyte _f_swap, _f_over
         nbyte _f_return
 
     defword _f_ddup, "ddup", lf_definition
         // ( a b -- a b a b )
-        nbyte _f_over
-        nbyte _f_over
+        nbyte _f_over, _f_over
         nbyte _f_return
 
     defword _f_ddrop, "ddrop", lf_definition
         // ( a b -- )
-        nbyte _f_drop
-        nbyte _f_drop
+        nbyte _f_drop, _f_drop
         nbyte _f_return
 
     defword _f_add_store, "+!", lf_definition
         // ( n p -- )
-        nbyte _f_dup
-        nbyte _f_load
-        nbyte _f_rot
-        nbyte _f_add
-        nbyte _f_swap
-        nbyte _f_store
+        nbyte _f_dup, _f_load, _f_rot
+        // ( p orig n -- )
+        nbyte _f_add, _f_swap, _f_store
         nbyte _f_return
 
     defword _f_here, "here", lf_definition
-        nbyte _f_of_here
-        nbyte _f_load
+        nbyte _f_of_here, _f_load
+        nbyte _f_return
+
+    defword _f_last, "last", lf_definition
+        nbyte _f_of_last,  _f_load
         nbyte _f_return
 
     defword _f_allot, "allot", lf_definition
         // ( n -- )
-        nbyte _f_of_here
-        nbyte _f_add_store
+        nbyte _f_of_here, _f_add_store
         nbyte _f_return
 
     defword _f_align, "align", lf_definition
-        nbyte _f_of_here
-        nbyte _f_load
-        nbyte _f_aligned
-        nbyte _f_of_here
-        nbyte _f_store
+        nbyte _f_of_here, _f_load, _f_aligned
+        nbyte _f_of_here, _f_store
         nbyte _f_return
 
     defword _f_commit, "commit", lf_definition
         // ( p n -- )
         nbyte _f_tuck
         // ( n p n )
-        nbyte _f_here
-        nbyte _f_nrot
-        nbyte _f_rawmove
+        nbyte _f_here, _f_nrot, _f_rawmove
         // ( n )
         nbyte _f_allot
         nbyte _f_return
 
     defword _f_comma, ",", lf_definition
         // ( n -- ) Append native to data space
-        nbyte _f_native
-        nbyte _f_allot
-        nbyte _f_here
-        nbyte _f_native
-        nbyte _f_sub
-        nbyte _f_store
+        nbyte _f_here, _f_native, _f_allot, _f_store
         nbyte _f_return
 
     defword _f_n_add, "n+", lf_definition
         // ( n1 n2 -- {n1 * NATIVE + n2} )
-        nbyte _f_swap
-        nbyte _f_native
-        nbyte _f_mul
-        nbyte _f_add
-        nbyte _f_return
-
-    defword _f_last, "last", lf_definition
-        nbyte _f_of_last
-        nbyte _f_load
+        nbyte _f_swap, _f_native, _f_mul, _f_add
         nbyte _f_return
 
     defword _f_execute, "execute", lf_definition
-        nbyte _f_native
-        nbyte _f_add
+        nbyte _f_native, _f_add
         nbyte _f_rawexecute
         nbyte _f_return
 
     defword _f_rawdef, "rawdef", lf_definition
         // ( p:name n:name p:code -- )
         nbyte _f_nrot
-        // ( p:code p:name n:name -- )
-        nbyte _f_here
-        nbyte _f_over
-        // ( p:code p:name n:name p:name' n:name -- )
+        // ( p:code p:name n:name )
+        nbyte _f_here, _f_over
+        // ( p:code p:name n:name p:name' n:name )
         nbyte _f_dswap
-        // ( p:code p:name' n:name p:name n:name -- )
+        // ( p:code p:name' n:name p:name n:name )
         nbyte _f_commit
-        // ( p:code p:name n:name -- )
-        nbyte _f_swap
-        nbyte _f_rot
-        // ( n:name p:name p:code -- )
+        // ( p:code p:name n:name )
+        nbyte _f_swap, _f_rot
+        // ( n:name p:name p:code )
 
-        nbyte _f_align
-        nbyte _f_comma
-        nbyte _f_last
-        nbyte _f_comma
+        nbyte _f_align, _f_comma
+        nbyte _f_last, _f_comma
         nbyte _f_comma
         nbyte _f_comma
 
-        nbyte _f_lit
-        nbyte -4
-        nbyte _f_here
-        nbyte _f_n_add
+        nbyte _f_lit, -4, _f_here, _f_n_add
         nbyte _f_of_last
-        // ( p:word p:last -- )
+        // ( p:word p:last )
         nbyte _f_store
 
         nbyte _f_return
 
     defword _f_rawlist, "rawlist", lf_definition
         // ( p:list -- p:payload n:payload )
-        nbyte _f_dup
-        nbyte _f_native
-        nbyte _f_add
-        nbyte _f_swap
-        nbyte _f_load
+        nbyte _f_dup, _f_native, _f_add
+        // ( p:list p:payload )
+        nbyte _f_swap, _f_load
         nbyte _f_return
 
     defword _f_define, "define", lf_definition
         // ( p:name n:name p:list -- )
         nbyte _f_nrot
         // ( p:list p:name n:name )
-        nbyte _f_of_definition
-        nbyte _f_rawdef
+        nbyte _f_of_definition, _f_rawdef
         // ( p:list )
-        nbyte _f_rawlist
-        nbyte _f_commit
+        nbyte _f_rawlist, _f_commit
         nbyte _f_return
 
     defword _f_var, "var", lf_definition
-        nbyte _f_of_constant
-        nbyte _f_rawdef
-
-        nbyte _f_native
-        nbyte _f_here
-        nbyte _f_add
+        // ( p:name n:name -- )
+        nbyte _f_of_constant, _f_rawdef
+        // ()
+        nbyte _f_native, _f_here, _f_add
         // ( p ) Points to data space pointer after definition
         nbyte _f_comma
         nbyte _f_return
