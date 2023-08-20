@@ -684,6 +684,19 @@ memcpy:
     add s_ip, s_ip, 2 * NATIVE
     go
 
+.Lf_jump:
+    ln s_ip, (1 * NATIVE)(s_ip)
+    go
+
+.Lf_jif:
+    addi s_dsp, s_dsp, - NATIVE
+    ln a0, (s_dsp)
+    addi s_ip, s_ip, 2 * NATIVE
+    beqz a0, 1f
+    ln s_ip, (-1 * NATIVE)(s_ip)
+1:
+    go
+
 .Lf_nop:
     next
 
@@ -863,6 +876,19 @@ lf_definition:
 
     alu1 .Lf_neg, neg
     alu1 .Lf_not, not
+    alu1 .Lf_eqz, seqz
+    alu1 .Lf_ltz, sltz
+
+.Lf_select:
+    addi s_dsp, s_dsp, -2 * NATIVE
+    ln a1, (0 * NATIVE)(s_dsp)
+    ln a2, (1 * NATIVE)(s_dsp)
+    ln a0, (-1 * NATIVE)(s_dsp)
+    bnez a0, 1f
+    mv a1, a2
+1:
+    sn a1, (-1 * NATIVE)(s_dsp)
+    next
 
 .Lf_aligned:
     ln a0, (-1 * NATIVE)(s_dsp)
@@ -914,6 +940,9 @@ lf_definition:
 
     defword _f_litlist, "_litlist", .Lf_litlist, -1
     defword _f_litstring, "_litstring", .Lf_litstring
+    defword _f_jump, "_jump", .Lf_jump
+    defword _f_jif, "_jif", .Lf_jif
+
     defword _f_return, "_return", .Lf_return
     defword _f_nop, "_nop", .Lf_nop
     defword _f_lit, "_lit", .Lf_lit
@@ -943,14 +972,18 @@ lf_definition:
     defword _f_neg, "neg", .Lf_neg
     defword _f_not, "not", .Lf_not
 
+    defword _f_eqz, "=0", .Lf_eqz
+    defword _f_ltz, "<0", .Lf_ltz
+    defword _f_select, "?", .Lf_select
+
     defword _f_aligned, "aligned", .Lf_aligned
     defword _f_rawmove, "rawmove", .Lf_rawmove
 
     defword _f_lhere, "lhere", .Lf_lhere
     defword _f_lallot, "lallot", .Lf_lallot
     defword _f_nlallot, "nlallot", .Lf_nlallot
-    defword _f_n_load_l, "@l", .Lf_load_l
-    defword _f_n_store_l, "!l", .Lf_store_l
+    defword _f_load_l, "@l", .Lf_load_l
+    defword _f_store_l, "!l", .Lf_store_l
 
     defword _f_load, "@", .Lf_load
     defword _f_store, "!", .Lf_store
@@ -972,6 +1005,11 @@ lf_definition:
 
     defword _f_of_constant, "=_constant", lf_constant
         nbyte lf_constant
+
+    defword _f_of_noop, "=noop", lf_constant
+        nbyte 1f
+1:
+        nbyte NATIVE, _f_return
 
     defword _f_nrot, "-rot", lf_definition
         // ( a b c -- c a b )
@@ -1097,6 +1135,30 @@ lf_definition:
         nbyte _f_native, _f_here, _f_add
         // ( p ) Points to data space pointer after definition
         nbyte _f_comma
+        nbyte _f_return
+
+    defword _f_ifelse, "ifelse", lf_definition
+        // ( n p:if p:else -- )
+        nbyte _f_select
+        nbyte _f_execute
+        nbyte _f_return
+
+    defword _f_if, "if", lf_definition
+        // ( n p:if -- )
+        nbyte _f_of_noop, _f_ifelse
+        nbyte _f_return
+
+    defword _f_while, "while", lf_definition
+        // ( p:body p:cond -- )
+        nbyte _f_lit, 2, _f_nlallot
+        nbyte _f_lit, 1, _f_store_l // p:cond
+        nbyte _f_lit, 0, _f_store_l // p:body
+1:
+        nbyte _f_lit, 1, _f_load_l, _f_execute
+        nbyte _f_eqz, _f_jif, 2f
+        nbyte _f_lit, 0, _f_load_l, _f_execute
+        nbyte _f_jump, 1b
+2:
         nbyte _f_return
 
     .set _last_word, 1000b
