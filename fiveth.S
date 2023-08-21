@@ -1011,7 +1011,7 @@ lf_definition:
 1:
         nbyte NATIVE, _f_return
 
-    defword _f_nrot, "-rot", lf_definition
+    defword _f_nrot, "nrot", lf_definition
         // ( a b c -- c a b )
         nbyte _f_rot
         nbyte _f_rot
