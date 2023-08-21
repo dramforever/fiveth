@@ -716,11 +716,18 @@ memcpy:
     call fiveth_putchar
     next
 
-.Lf_sdot:
+.Lf_s_dot:
     addi s_dsp, s_dsp, - 2 * NATIVE
     ln a0, (0 * NATIVE)(s_dsp)
     ln a1, (1 * NATIVE)(s_dsp)
     call putstring
+    next
+
+.Lf_b_dot:
+    addi s_dsp, s_dsp, - NATIVE
+    ln a0, (s_dsp)
+    zext.b a0, a0
+    call fiveth_putchar
     next
 
 .Lf_ok:
@@ -915,18 +922,40 @@ lf_definition:
     call memcpy
     next
 
-.Lf_load:
+    .macro load_like label, insn
+\label:
     ln a0, (-1 * NATIVE)(s_dsp)
-    ln a0, (a0)
+    \insn a0, (a0)
     sn a0, (-1 * NATIVE)(s_dsp)
     next
+    .endm
 
-.Lf_store:
+    load_like .Lf_load, ln
+    load_like .Lf_b_load, lb
+    load_like .Lf_h_load, lh
+    load_like .Lf_w_load, lw
+    load_like .Lf_b_load_u, lbu
+    load_like .Lf_h_load_u, lhu
+
+#if __riscv_xlen == 32
+    load_like .Lf_w_load_u, lw
+#else
+    load_like .Lf_w_load_u, lwu
+#endif
+
+    .macro store_like label, insn
+\label:
     addi s_dsp, s_dsp, - 2 * NATIVE
     ln a0, (0 * NATIVE)(s_dsp)
     ln a1, (1 * NATIVE)(s_dsp)
-    sn a0, (a1)
+    \insn a0, (a1)
     next
+    .endm
+
+    store_like .Lf_store, sn
+    store_like .Lf_b_store, sb
+    store_like .Lf_h_store, sh
+    store_like .Lf_w_store, sw
 
     .section .rodata
 
@@ -957,7 +986,7 @@ lf_definition:
     defword _f_nop, "_nop", .Lf_nop
     defword _f_lit, "_lit", .Lf_lit
     defword _f_dot, ".", .Lf_dot
-    defword _f_sdot, "s.", .Lf_sdot
+    defword _f_s_dot, "s.", .Lf_s_dot
     defword _f_rawexecute, "rawexecute", .Lf_rawexecute
     defword _f_ok, "_ok", .Lf_ok
 
@@ -999,7 +1028,19 @@ lf_definition:
     defword _f_comma_l, ",l", .Lf_comma_l
 
     defword _f_load, "@", .Lf_load
+    defword _f_b_load, "b@", .Lf_b_load
+    defword _f_h_load, "h@", .Lf_h_load
+    defword _f_w_load, "w@", .Lf_w_load
+    defword _f_b_load_u, "b@u", .Lf_b_load_u
+    defword _f_h_load_u, "h@u", .Lf_h_load_u
+    defword _f_w_load_u, "w@u", .Lf_w_load_u
+
     defword _f_store, "!", .Lf_store
+    defword _f_b_store, "b!", .Lf_b_store
+    defword _f_h_store, "h!", .Lf_h_store
+    defword _f_w_store, "w!", .Lf_w_store
+
+    defword _f_b_dot, "b.", .Lf_b_dot
 
     defword _f_native, "native", lf_constant
         nbyte NATIVE
