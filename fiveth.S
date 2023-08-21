@@ -167,6 +167,7 @@ parse_line:
     li a1, '[' ; beq a0, a1, .Lhandle_list
     li a1, ']' ; beq a0, a1, .Lhandle_ret
     li a1, '"' ; beq a0, a1, .Lhandle_string
+    li a1, ';' ; beq a0, a1, .Lline_done // Comment
 
     // Check for negative number
     addi a1, s_wend, 1
