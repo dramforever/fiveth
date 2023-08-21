@@ -860,12 +860,14 @@ lf_definition:
     alu2 .Lf_add, add
     alu2 .Lf_sub, sub
     alu2 .Lf_mul, mul
-    alu2 .Lf_div, divu
+    alu2 .Lf_div, div
     alu2 .Lf_shl, sll
-    alu2 .Lf_shr, srl
+    alu2 .Lf_shr, sra
     alu2 .Lf_and, and
     alu2 .Lf_or, or
     alu2 .Lf_xor, xor
+
+    alu2 .Lf_slt, slt
 
     .macro alu1 label, insn
 \label:
@@ -977,6 +979,8 @@ lf_definition:
     defword _f_ltz, "<0", .Lf_ltz
     defword _f_select, "?", .Lf_select
 
+    defword _f_lt, "<", .Lf_slt
+
     defword _f_aligned, "aligned", .Lf_aligned
     defword _f_rawmove, "rawmove", .Lf_rawmove
 
@@ -1037,6 +1041,22 @@ lf_definition:
     defword _f_ddrop, "ddrop", lf_definition
         // ( a b -- )
         nbyte _f_drop, _f_drop
+        nbyte _f_return
+
+    defword _f_eq, "=", lf_definition
+        nbyte _f_sub, _f_eqz
+        nbyte _f_return
+
+    defword _f_gt, ">", lf_definition
+        nbyte _f_swap, _f_lt
+        nbyte _f_return
+
+    defword _f_le, "<=", lf_definition
+        nbyte _f_swap, _f_lt, _f_eqz
+        nbyte _f_return
+
+    defword _f_ge, ">=", lf_definition
+        nbyte _f_lt, _f_eqz
         nbyte _f_return
 
     defword _f_add_store, "+!", lf_definition
