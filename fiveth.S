@@ -847,6 +847,13 @@ lf_definition:
     sn a0, (a1)
     next
 
+.Lf_comma_l:
+    addi s_dsp, s_dsp, - NATIVE
+    ln a0, (s_dsp)
+    sn a0, (s_rsp)
+    addi s_rsp, s_rsp, NATIVE
+    next
+
     .macro alu2 label, insn
 \label:
     addi s_dsp, s_dsp, - NATIVE
@@ -989,6 +996,7 @@ lf_definition:
     defword _f_nlallot, "nlallot", .Lf_nlallot
     defword _f_load_l, "@l", .Lf_load_l
     defword _f_store_l, "!l", .Lf_store_l
+    defword _f_comma_l, ",l", .Lf_comma_l
 
     defword _f_load, "@", .Lf_load
     defword _f_store, "!", .Lf_store
@@ -1171,20 +1179,17 @@ lf_definition:
 
     defword _f_while, "while", lf_definition
         // ( p:body p:cond -- )
-        nbyte _f_lit, 2, _f_nlallot
-        nbyte _f_lit, 1, _f_store_l // p:cond
-        nbyte _f_lit, 0, _f_store_l // p:body
+        nbyte _f_comma_l, _f_comma_l
 1:
-        nbyte _f_lit, 1, _f_load_l, _f_execute
-        nbyte _f_eqz, _f_jif, 2f
         nbyte _f_lit, 0, _f_load_l, _f_execute
+        nbyte _f_eqz, _f_jif, 2f
+        nbyte _f_lit, 1, _f_load_l, _f_execute
         nbyte _f_jump, 1b
 2:
         nbyte _f_return
 
     defword _f_repeat, "repeat", lf_definition
-        nbyte _f_lit, 1, _f_nlallot
-        nbyte _f_lit, 0, _f_store_l
+        nbyte _f_comma_l
 1:
         nbyte _f_lit, 0, _f_load_l, _f_execute
         nbyte _f_jif, 1b
@@ -1193,17 +1198,14 @@ lf_definition:
 
     defword _f_count, "count", lf_definition
         // ( n p -- )
-        nbyte _f_lit, 3, _f_nlallot
-        nbyte _f_lit, 2, _f_store_l
-        nbyte _f_lit, 1, _f_store_l
-        nbyte _f_lit, 0, _f_lit, 0, _f_store_l
+        nbyte _f_lit, 0, _f_comma_l, _f_comma_l, _f_comma_l
 1:
         nbyte _f_lit, 0, _f_load_l
-        nbyte _f_lit, 1, _f_load_l
+        nbyte _f_lit, 2, _f_load_l
         nbyte _f_over, _f_sub, _f_eqz
         nbyte _f_jif, 2f
 
-        nbyte _f_lit, 2, _f_load_l, _f_execute
+        nbyte _f_lit, 1, _f_load_l, _f_execute
 
         nbyte _f_lit, 0, _f_load_l
         nbyte _f_lit, 1, _f_add
