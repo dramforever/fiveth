@@ -716,6 +716,14 @@ memcpy:
     call fiveth_putchar
     next
 
+.Lf_dot_h:
+    addi s_dsp, s_dsp, - NATIVE
+    ln a0, (s_dsp)
+    call print_hex
+    li a0, ' '
+    call fiveth_putchar
+    next
+
 .Lf_s_dot:
     addi s_dsp, s_dsp, - 2 * NATIVE
     ln a0, (0 * NATIVE)(s_dsp)
@@ -986,6 +994,7 @@ lf_definition:
     defword _f_nop, "_nop", .Lf_nop
     defword _f_lit, "_lit", .Lf_lit
     defword _f_dot, ".", .Lf_dot
+    defword _f_dot_h, ".h", .Lf_dot_h
     defword _f_s_dot, "s.", .Lf_s_dot
     defword _f_rawexecute, "rawexecute", .Lf_rawexecute
     defword _f_ok, "_ok", .Lf_ok
