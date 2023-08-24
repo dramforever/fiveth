@@ -985,14 +985,20 @@ lf_definition:
     nbyte 92b - 91b - 1 // Length without NUL-terminator
     .endm
 
-    defword _f_litlist, "_litlist", .Lf_litlist, -1
-    defword _f_litstring, "_litstring", .Lf_litstring
-    defword _f_jump, "_jump", .Lf_jump
-    defword _f_jif, "_jif", .Lf_jif
+    .macro sysword name, code
+\name:
+    nbyte \code
+    .endm
 
-    defword _f_return, "_return", .Lf_return
-    defword _f_nop, "_nop", .Lf_nop
-    defword _f_lit, "_lit", .Lf_lit
+    sysword _f_litlist, .Lf_litlist
+    sysword _f_litstring, .Lf_litstring
+    sysword _f_lit, .Lf_lit
+    sysword _f_jump, .Lf_jump
+    sysword _f_jif, .Lf_jif
+
+    // The first defword here needs link = -1
+
+    defword _f_return, "return", .Lf_return, -1
     defword _f_dot, ".", .Lf_dot
     defword _f_dot_h, ".h", .Lf_dot_h
     defword _f_s_dot, "s.", .Lf_s_dot
