@@ -930,6 +930,14 @@ lf_definition:
     call memcpy
     next
 
+.Lf_findword:
+    addi s_dsp, s_dsp, -1 * NATIVE
+    ln a0, (-1 * NATIVE)(s_dsp)
+    ln a1, (0 * NATIVE)(s_dsp)
+    call find_word
+    sn a0, (-1 * NATIVE)(s_dsp)
+    next
+
     .macro load_like label, insn
 \label:
     ln a0, (-1 * NATIVE)(s_dsp)
@@ -1034,6 +1042,7 @@ lf_definition:
 
     defword _f_aligned, "aligned", .Lf_aligned
     defword _f_rawmove, "rawmove", .Lf_rawmove
+    defword _f_findword, "findword", .Lf_findword
 
     defword _f_lhere, "lhere", .Lf_lhere
     defword _f_lallot, "lallot", .Lf_lallot
