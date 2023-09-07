@@ -112,17 +112,29 @@ endfunc _code_\label
         .size \label, . - \label
     .endm
 
-    .macro defword label, name, link=1001b
-        _newword \label, "\name", _code_rundef, \link
+    .macro defword label, name
+        _newword \label, "\name", _code_rundef
     .endm
 
     .macro enddef label
         .size \label, . - \label
     .endm
 
-    .macro constword label, name, value, link=1001b
-        _newword \label, "\name", _code_runconst, \link
+    .macro constword label, name, value
+        _newword \label, "\name", _code_runconst
         nbyte \value
+        .size \label, . - \label
+    .endm
+
+    .macro varword label, name, var_label
+        constword \label, "\name", \var_label
+        .pushsection .sbss, "aw", @progbits
+        .p2align LGNATIVE
+        .type \var_label, @object
+\var_label:
+        .zero NATIVE
+        .size \var_label, . - \var_label
+        .popsection
     .endm
 
     .macro str string
@@ -236,20 +248,42 @@ codeword _f_jif, "_jif"
     go
 endcode _f_jif
 
-codeword _f_load, "@"
-    ln a0, (-1 * NATIVE)(s_dsp)
-    ln a0, (a0)
-    sn a0, (-1 * NATIVE)(s_dsp)
-    next
-endcode _f_load
+    .macro load_like label, name, insn
+    codeword \label, "\name"
+        ln a0, (-1 * NATIVE)(s_dsp)
+        \insn a0, (a0)
+        sn a0, (-1 * NATIVE)(s_dsp)
+        next
+    endcode \label
+    .endm
 
-codeword _f_store, "!"
-    addi s_dsp, s_dsp, -2 * NATIVE
-    ln a0, (0 * NATIVE)(s_dsp)
-    ln a1, (1 * NATIVE)(s_dsp)
-    sn a0, (a1)
-    next
-endcode _f_store
+    load_like _f_load, "@", ln
+    load_like _f_b_load, "b@", lb
+    load_like _f_b_load_u, "b@u", lbu
+    load_like _f_h_load, "h@", lh
+    load_like _f_h_load_u, "h@u", lhu
+    load_like _f_w_load, "w@", lw
+
+#if __riscv_xlen == 32
+    load_like _f_w_load_u, "w@u", lw
+#else
+    load_like _f_w_load_u, "w@u", lwu
+#endif
+
+    .macro store_like label, name, insn
+    codeword \label, "\name"
+        addi s_dsp, s_dsp, -2 * NATIVE
+        ln a0, (0 * NATIVE)(s_dsp)
+        ln a1, (1 * NATIVE)(s_dsp)
+        \insn a0, (a1)
+        next
+    endcode \label
+    .endm
+
+    store_like _f_store, "!", sn
+    store_like _f_b_store, "b!", sb
+    store_like _f_h_store, "h!", sh
+    store_like _f_w_store, "w!", sw
 
     .macro alu2word label, name, insn
 codeword \label, "\name"
@@ -287,11 +321,43 @@ endcode \label
     alu1word _f_eqz, "=0", seqz
     alu1word _f_ltz, "<0", sltz
 
+codeword _f_memcpy, "memcpy"
+    addi sp, sp, -3 * NATIVE
+    ln a0, (0 * NATIVE)(s_dsp)
+    ln a1, (1 * NATIVE)(s_dsp)
+    ln a2, (2 * NATIVE)(s_dsp)
+    call memcpy
+    next
+endcode _f_memcpy
+
+codeword _f_memcmp, "memcmp"
+    addi sp, sp, -3 * NATIVE
+    ln a0, (0 * NATIVE)(s_dsp)
+    ln a1, (1 * NATIVE)(s_dsp)
+    ln a2, (2 * NATIVE)(s_dsp)
+    call memcmp
+    next
+endcode _f_memcmp
+
 codeword _f_sys_exit, "sys_exit"
     li a0, 0
     call exit
     unimp
 endcode _f_sys_exit
+
+codeword _f_sys_putchar, "sys_putchar"
+    addi s_dsp, s_dsp, -1 * NATIVE
+    lbu a0, (s_dsp)
+    call putchar
+    next
+endcode _f_sys_putchar
+
+codeword _f_sys_getchar, "sys_getchar"
+    call getchar
+    sn a0, (s_dsp)
+    addi s_dsp, s_dsp, 1 * NATIVE
+    next
+endcode _f_sys_getchar
 
 codeword _f_dump, "_dump"
     la a0, data_stack
@@ -303,6 +369,9 @@ endcode _f_dump
 
 constword _f_native, "native", NATIVE
 constword _f_lgnative, "lgnative", LGNATIVE
+
+varword _f_of_here, "=here", here_pointer
+varword _f_of_last, "=last", last_word
 
 defword _f_dup, "dup"
     nbyte _f_lcomma
@@ -351,6 +420,13 @@ defword _f_over, "over"
     nbyte _f_return
 enddef _f_over
 
+defword _f_add_store, "+!"
+    nbyte _f_dup, _f_load
+    nbyte _f_rot
+    nbyte _f_add, _f_swap, _f_store
+    nbyte _f_return
+enddef _f_add_store
+
 defword _f_gez, ">=0"
     nbyte _f_ltz, _f_eqz
     nbyte _f_return
@@ -386,6 +462,26 @@ defword _f_ifelse, "ifelse"
     nbyte _f_return
 enddef _f_ifelse
 
+defword _f_if, "if"
+    nbyte _f_swap, _f_jif, 1f
+    nbyte _f_run
+    nbyte _f_jump, 2f
+1:
+    nbyte _f_drop
+2:
+    nbyte _f_return
+enddef _f_if
+
+defword _f_repeat, "repeat"
+    nbyte _f_lcomma
+1:
+    nbyte _f_lit, 0, _f_lload
+    nbyte _f_run
+    nbyte _f_jif, 1b
+
+    nbyte _f_return
+enddef _f_repeat
+
 defword _f_count, "count"
     nbyte _f_lcomma, _f_lcomma
     nbyte _f_lit, 0, _f_lcomma
@@ -403,20 +499,32 @@ defword _f_count, "count"
     nbyte _f_return
 enddef _f_count
 
-defword _f_test, "_test"
-    nbyte _f_lit, 10
+defword _f_s_dot, "s."
     list 1f
-        nbyte _f_dup, _f_lit, 2, _f_and
-        list 2f
-            nbyte _f_dump, _f_return
-2:
-        list 2f
-            nbyte _f_dump, _f_dump, _f_return
-2:
-        nbyte _f_ifelse
+        nbyte _f_drop
+        nbyte _f_dup, _f_b_load_u, _f_sys_putchar
+        nbyte _f_lit, 1, _f_add
         nbyte _f_return
-1:
+    1:
     nbyte _f_count
+    nbyte _f_drop
+    nbyte _f_return
+enddef _f_s_dot
+
+defword _f_here, "here"
+    nbyte _f_of_here, _f_load
+    nbyte _f_return
+enddef _f_here
+
+defword _f_allot, "allot"
+    nbyte _f_of_here, _f_add_store
+    nbyte _f_return
+enddef _f_allot
+
+defword _f_test, "_test"
+    str "Hello, world!"
+    nbyte _f_s_dot
+    nbyte _f_lit, '\n', _f_sys_putchar
     nbyte _f_return
 enddef _f_test
 
@@ -426,19 +534,6 @@ defword _f_init, "_init"
 enddef _f_init
 
     .set _last_word, 1001b
-
-    .section .sbss, "aw", @nobits
-
-    .macro reserve label, size
-        .type \label, @object
-\label:
-        .zero \size
-        .size \label, . - \label
-    .endm
-
-    .p2align LGNATIVE
-    reserve last_word, NATIVE
-    reserve here_pointer, NATIVE
 
     .section .text
 
