@@ -120,7 +120,7 @@ endfunc _code_\label
         .size \label, . - \label
     .endm
 
-    .macro constword label, name, link=1001b, value
+    .macro constword label, name, value, link=1001b
         _newword \label, "\name", _code_runconst, \link
         nbyte \value
     .endm
@@ -367,7 +367,7 @@ defword _f_lez, "<=0"
 enddef _f_lez
 
 defword _f_run, "run"
-    nbyte _f_lit, NATIVE, _f_add
+    nbyte _f_native, _f_add
     nbyte _f_runraw
     nbyte _f_return
 enddef _f_run
