@@ -571,6 +571,54 @@ defword _f_count, "count"
     nbyte _f_return
 enddef _f_count
 
+defword _f_begin_case, "begin_case"
+    // ( -- t )
+    nbyte _f_lit, 0
+    nbyte _f_return
+enddef _f_begin_case
+
+defword _f_case, "case"
+    // ( 0 l:( -- t:cond ) l:( -- ..s ) -- 0 ) if t:cond == 0
+    // ( 0 l:( -- t:cond ) l:( -- ..s ) -- ..s 1 ) if t:cond != 0
+    // ( 1 l:( -- t ) l:( -- ..s ) -- 1 )
+
+    nbyte _f_rot
+    list 1f
+        nbyte _f_ddrop
+        nbyte _f_lit, 1
+        nbyte _f_return
+    1:
+    list 1f
+        // ( l:( -- t:cond) l:( -- ..s ) )
+        nbyte _f_lcomma
+        // ( l:( -- t:cond) )
+        nbyte _f_run
+        // ( t:cond )
+        nbyte _f_lit, 0, _f_lload
+        nbyte _f_swap
+        // ( l:( -- ..s ) t:cond )
+        list 2f
+            nbyte _f_run
+            nbyte _f_lit, 1
+            nbyte _f_return
+        2:
+        list 2f
+            nbyte _f_drop
+            nbyte _f_lit, 0
+            nbyte _f_return
+        2:
+        nbyte _f_ifelse
+        nbyte _f_return
+    1:
+    nbyte _f_ifelse
+    nbyte _f_return
+enddef _f_case
+
+defword _f_end_case, "end_case"
+    nbyte _f_drop
+    nbyte _f_return
+enddef _f_end_case
+
 defword _f_s_dot, "s."
     list 1f
         nbyte _f_drop
@@ -617,30 +665,46 @@ defword _f_s_eq, "s="
 enddef _f_s_eq
 
 defword _f_parse_word_start, "_parse_word_start"
-    // ( p:end p:input -- p:word n:word )
+    // ( p:end p:input -- n:word )
     nbyte _f_lit, 0, _f_nrot // ( n p:end p:input )
     list 1f
-        nbyte _f_ddup, _f_eq
-        list 2f
-            nbyte _f_ddrop, _f_lit, 0
-            nbyte _f_return
-        2:
-        list 2f
-            nbyte _f_dup, _f_b_load_u, _f_is_whitespace
-            list 3f
+        nbyte _f_begin_case
+            list 2f
+                // End of input
+                nbyte _f_ddup, _f_eq
+                nbyte _f_return
+            2:
+            list 2f
                 nbyte _f_ddrop, _f_lit, 0
                 nbyte _f_return
-            3:
-            list 3f
+            2:
+            nbyte _f_case
+
+            list 2f
+                // Found whitespace
+                nbyte _f_dup, _f_b_load_u, _f_is_whitespace
+                nbyte _f_return
+            2:
+            list 2f
+                nbyte _f_ddrop, _f_lit, 0
+                nbyte _f_return
+            2:
+            nbyte _f_case
+
+            list 2f
+                // Otherwise, check next byte
+                nbyte _f_lit, 1
+                nbyte _f_return
+            2:
+            list 2f
                 nbyte _f_lit, 1, _f_add
                 nbyte _f_rot, _f_lit, 1, _f_add, _f_nrot
                 nbyte _f_lit, 1
                 nbyte _f_return
-            3:
-            nbyte _f_ifelse
-            nbyte _f_return
-        2:
-        nbyte _f_ifelse
+            2:
+            nbyte _f_case
+        nbyte _f_end_case
+
         nbyte _f_return
     1:
     nbyte _f_repeat
@@ -653,30 +717,42 @@ defword _f_parse_word, "parse_word"
     nbyte _f_over, _f_add, _f_swap // ( p:end p:input )
 
     list 1f
-        nbyte _f_ddup, _f_eq
-        list 2f
-            // Found end of input
-            nbyte _f_nip, _f_lit, 0 // ( p:input 0 )
-            nbyte _f_lit, 0
-            nbyte _f_return
-        2:
-        list 2f
-            nbyte _f_dup, _f_b_load_u, _f_is_whitespace
-            list 3f
+        nbyte _f_begin_case
+            list 2f
+                // End of input
+                nbyte _f_ddup, _f_eq
+                nbyte _f_return
+            2:
+            list 2f
+                nbyte _f_nip, _f_lit, 0 // ( p:input 0 )
+                nbyte _f_lit, 0
+                nbyte _f_return
+            2:
+            nbyte _f_case
+
+            list 2f
+                nbyte _f_dup, _f_b_load_u, _f_is_whitespace
+                nbyte _f_return
+            2:
+            list 2f
                 nbyte _f_lit, 1, _f_add
                 nbyte _f_lit, 1
                 nbyte _f_return
-            3:
-            list 3f
+            2:
+            nbyte _f_case
+
+            list 2f
+                nbyte _f_lit, 1
+                nbyte _f_return
+            2:
+            list 2f
                 nbyte _f_dup, _f_nrot // ( p:word p:end p:word )
                 nbyte _f_parse_word_start // ( p:word n:word )
                 nbyte _f_lit, 0
                 nbyte _f_return
-            3:
-            nbyte _f_ifelse
-            nbyte _f_return
-        2:
-        nbyte _f_ifelse
+            2:
+            nbyte _f_case
+        nbyte _f_end_case
         nbyte _f_return
     1:
     nbyte _f_repeat
@@ -684,9 +760,10 @@ defword _f_parse_word, "parse_word"
 enddef _f_parse_word
 
 defword _f_test, "_test"
-    str ""
-    str ""
-    nbyte _f_dump, _f_s_eq, _f_dump
+    str " Hello, world!"
+    nbyte _f_dump, _f_parse_word, _f_dump
+    nbyte _f_s_dot
+    nbyte _f_lit, '\n', _f_sys_putchar
     nbyte _f_return
 enddef _f_test
 
