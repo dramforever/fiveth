@@ -230,6 +230,25 @@ codeword _f_lstore, "l!"
     next
 endcode _f_lstore
 
+codeword _f_lhere, "lhere"
+    sn s_rsp, (s_dsp)
+    addi s_dsp, s_dsp, 1 * NATIVE
+    next
+endcode _f_lhere
+
+codeword _f_lallot, "lallot"
+    addi s_dsp, s_dsp, -1 * NATIVE
+    ln a0, (s_dsp)
+    add s_rsp, s_rsp, a0
+    next
+endcode _f_lallot
+
+codeword _f_lalign, "lalign"
+    addi s_rsp, s_rsp, NATIVE - 1
+    andi s_rsp, s_rsp, ~ (NATIVE - 1)
+    next
+endcode _f_lalign
+
     // Control flow primitives
 
 codeword _f_jump, "_jump"
@@ -322,7 +341,7 @@ endcode \label
     alu1word _f_ltz, "<0", sltz
 
 codeword _f_memcpy, "memcpy"
-    addi sp, sp, -3 * NATIVE
+    addi s_dsp, s_dsp, -3 * NATIVE
     ln a0, (0 * NATIVE)(s_dsp)
     ln a1, (1 * NATIVE)(s_dsp)
     ln a2, (2 * NATIVE)(s_dsp)
@@ -331,11 +350,12 @@ codeword _f_memcpy, "memcpy"
 endcode _f_memcpy
 
 codeword _f_memcmp, "memcmp"
-    addi sp, sp, -3 * NATIVE
-    ln a0, (0 * NATIVE)(s_dsp)
-    ln a1, (1 * NATIVE)(s_dsp)
-    ln a2, (2 * NATIVE)(s_dsp)
+    addi s_dsp, s_dsp, -2 * NATIVE
+    ln a0, (-1 * NATIVE)(s_dsp)
+    ln a1, (0 * NATIVE)(s_dsp)
+    ln a2, (1 * NATIVE)(s_dsp)
     call memcmp
+    sn a0, (-1 * NATIVE)(s_dsp)
     next
 endcode _f_memcmp
 
@@ -369,6 +389,9 @@ endcode _f_dump
 
 constword _f_native, "native", NATIVE
 constword _f_lgnative, "lgnative", LGNATIVE
+
+constword _f_of_input, "=input_buffer", input_buffer
+constword _f_of_token, "=token_buffer", token_buffer
 
 varword _f_of_here, "=here", here_pointer
 varword _f_of_last, "=last", last_word
@@ -420,12 +443,41 @@ defword _f_over, "over"
     nbyte _f_return
 enddef _f_over
 
+defword _f_tuck, "tuck"
+    nbyte _f_lcomma, _f_lcomma
+    nbyte _f_lit, 0, _f_lload
+    nbyte _f_lit, 1, _f_lload
+    nbyte _f_lit, 0, _f_lload
+    nbyte _f_return
+enddef _f_tuck
+
+defword _f_ddup, "ddup"
+    nbyte _f_over, _f_over
+    nbyte _f_return
+enddef _f_ddup
+
+defword _f_ddrop, "ddrop"
+    nbyte _f_drop, _f_drop
+    nbyte _f_return
+enddef _f_ddrop
+
+defword _f_dswap, "dswap"
+    nbyte _f_rot, _f_lcomma
+    nbyte _f_rot, _f_lit, 0, _f_lload
+    nbyte _f_return
+enddef _f_dswap
+
 defword _f_add_store, "+!"
     nbyte _f_dup, _f_load
     nbyte _f_rot
     nbyte _f_add, _f_swap, _f_store
     nbyte _f_return
 enddef _f_add_store
+
+defword _f_n_add, "n+"
+    nbyte _f_swap, _f_lgnative, _f_shl, _f_add
+    nbyte _f_return
+enddef _f_n_add
 
 defword _f_gez, ">=0"
     nbyte _f_ltz, _f_eqz
@@ -441,6 +493,26 @@ defword _f_lez, "<=0"
     nbyte _f_gtz, _f_eqz
     nbyte _f_return
 enddef _f_lez
+
+defword _f_eq, "="
+    nbyte _f_sub, _f_eqz
+    nbyte _f_return
+enddef _f_eq
+
+defword _f_ge, ">="
+    nbyte _f_lt, _f_eqz
+    nbyte _f_return
+enddef _f_ge
+
+defword _f_gt, ">"
+    nbyte _f_swap, _f_lt
+    nbyte _f_return
+enddef _f_gt
+
+defword _f_le, "<="
+    nbyte _f_gt, _f_eqz
+    nbyte _f_return
+enddef _f_le
 
 defword _f_run, "run"
     nbyte _f_native, _f_add
@@ -488,7 +560,7 @@ defword _f_count, "count"
 1:
     nbyte _f_lit, 2, _f_lload
     nbyte _f_lit, 1, _f_lload
-    nbyte _f_sub, _f_eqz, _f_jif, 2f
+    nbyte _f_eq, _f_jif, 2f
     nbyte _f_lit, 2, _f_lload
     nbyte _f_lit, 0, _f_lload, _f_run
     nbyte _f_lit, 2, _f_lload
@@ -521,10 +593,100 @@ defword _f_allot, "allot"
     nbyte _f_return
 enddef _f_allot
 
+defword _f_is_whitespace, "?whitespace"
+    nbyte _f_dup, _f_lit, ' ', _f_eq, _f_swap
+    nbyte _f_lit, '\t', _f_eq, _f_or
+    nbyte _f_return
+enddef _f_is_whitespace
+
+defword _f_s_eq, "s="
+    // String equal
+    // ( p:a n:a p:b n:b -- t )
+    nbyte _f_rot, _f_tuck, _f_eq // ( p:a p:b n:a t:equal )
+    list 1f
+        nbyte _f_memcmp, _f_eqz
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_drop, _f_ddrop
+        nbyte _f_lit, 0
+        nbyte _f_return
+    1:
+    nbyte _f_ifelse
+    nbyte _f_return
+enddef _f_s_eq
+
+defword _f_parse_word_start, "_parse_word_start"
+    // ( p:end p:input -- p:word n:word )
+    nbyte _f_lit, 0, _f_nrot // ( n p:end p:input )
+    list 1f
+        nbyte _f_ddup, _f_eq
+        list 2f
+            nbyte _f_ddrop, _f_lit, 0
+            nbyte _f_return
+        2:
+        list 2f
+            nbyte _f_dup, _f_b_load_u, _f_is_whitespace
+            list 3f
+                nbyte _f_ddrop, _f_lit, 0
+                nbyte _f_return
+            3:
+            list 3f
+                nbyte _f_lit, 1, _f_add
+                nbyte _f_rot, _f_lit, 1, _f_add, _f_nrot
+                nbyte _f_lit, 1
+                nbyte _f_return
+            3:
+            nbyte _f_ifelse
+            nbyte _f_return
+        2:
+        nbyte _f_ifelse
+        nbyte _f_return
+    1:
+    nbyte _f_repeat
+    nbyte _f_return
+enddef _f_parse_word_start
+
+defword _f_parse_word, "parse_word"
+    // ( p:input n:input -- p:word n:word )
+    // End of input and length 0 if no word found
+    nbyte _f_over, _f_add, _f_swap // ( p:end p:input )
+
+    list 1f
+        nbyte _f_ddup, _f_eq
+        list 2f
+            // Found end of input
+            nbyte _f_nip, _f_lit, 0 // ( p:input 0 )
+            nbyte _f_lit, 0
+            nbyte _f_return
+        2:
+        list 2f
+            nbyte _f_dup, _f_b_load_u, _f_is_whitespace
+            list 3f
+                nbyte _f_lit, 1, _f_add
+                nbyte _f_lit, 1
+                nbyte _f_return
+            3:
+            list 3f
+                nbyte _f_dup, _f_nrot // ( p:word p:end p:word )
+                nbyte _f_parse_word_start // ( p:word n:word )
+                nbyte _f_lit, 0
+                nbyte _f_return
+            3:
+            nbyte _f_ifelse
+            nbyte _f_return
+        2:
+        nbyte _f_ifelse
+        nbyte _f_return
+    1:
+    nbyte _f_repeat
+    nbyte _f_return
+enddef _f_parse_word
+
 defword _f_test, "_test"
-    str "Hello, world!"
-    nbyte _f_s_dot
-    nbyte _f_lit, '\n', _f_sys_putchar
+    str ""
+    str ""
+    nbyte _f_dump, _f_s_eq, _f_dump
     nbyte _f_return
 enddef _f_test
 
@@ -553,6 +715,11 @@ func main
 endfunc main
 
     .section .bss
+    .p2align LGNATIVE
+input_buffer:
+    .zero 1024
+token_buffer:
+    .zero 1024
 
     .balign 4096
 data_stack:
