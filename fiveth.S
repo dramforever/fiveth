@@ -80,7 +80,7 @@ func _code_rundef
     go
 endfunc _code_rundef
 
-    .section .rodata
+    .section .data
 
     .macro _newword label, name, code, link=1001b
         .set .Llink_\@, \link
@@ -128,7 +128,7 @@ endfunc _code_\label
 
     .macro varword label, name, var_label
         constword \label, "\name", \var_label
-        .pushsection .sbss, "aw", @progbits
+        .pushsection .sbss, "aw", @nobits
         .p2align LGNATIVE
         .type \var_label, @object
 \var_label:
@@ -547,7 +547,8 @@ func main
     la s_dsp, data_stack
     la s_rsp, return_stack
     mv s_rfp, s_rsp
-    la s_ip, _f_init + o_payload
+    la s_ip, _f_init
+    addi s_ip, s_ip, o_payload
     go
 endfunc main
 
