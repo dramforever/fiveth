@@ -933,6 +933,17 @@ defword _f_first_word, "_first_word"
             nbyte _f_case
 
             list 2f
+                nbyte _f_dup, _f_b_load_u, _f_lit, ';', _f_eq
+                nbyte _f_return
+            2:
+            list 2f
+                nbyte _f_tuck, _f_sub
+                nbyte _f_lit, 0
+                nbyte _f_return
+            2:
+            nbyte _f_case
+
+            list 2f
                 nbyte _f_dup, _f_b_load_u, _f_lit, '"', _f_eq
                 nbyte _f_return
             2:
@@ -1011,6 +1022,18 @@ defword _f_process_word, "_process_word"
         nbyte _f_pdrop
         str "Empty word"
         nbyte _f_lit, 0
+        nbyte _f_return
+    1:
+    nbyte _f_case
+
+    list 1f
+        // Comment
+        nbyte _f_over, _f_b_load_u, _f_lit, ';', _f_eq
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_pdrop
+        nbyte _f_lit, 1
         nbyte _f_return
     1:
     nbyte _f_case

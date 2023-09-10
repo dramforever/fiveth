@@ -1,6 +1,6 @@
 "Welcome to Fiveth! It's tradition here to hello five times:" s. 10 sys_putchar
 
 5 [
-    drop
+    drop ; Drop the counter which we don't use
     "Hello fiveth user" s. 10 sys_putchar
 ] count
