@@ -317,8 +317,8 @@ endcode \label
 
     alu2word _f_add, "+", add
     alu2word _f_sub, "-", sub
-    alu2word _f_mul, "*", mul
-    alu2word _f_div, "/", div
+    // alu2word _f_mul, "*", mul
+    // alu2word _f_div, "/", div
     alu2word _f_shl, "<<", sll
     alu2word _f_shr, ">>", sra
     alu2word _f_and, "&", and
@@ -339,6 +339,8 @@ endcode \label
     alu1word _f_not, "not", not
     alu1word _f_eqz, "=0", seqz
     alu1word _f_ltz, "<0", sltz
+
+    // Utilities
 
 codeword _f_memcpy, "memcpy"
     addi s_dsp, s_dsp, -3 * NATIVE
@@ -451,21 +453,41 @@ defword _f_tuck, "tuck"
     nbyte _f_return
 enddef _f_tuck
 
-defword _f_ddup, "ddup"
+defword _f_pdup, "pdup"
     nbyte _f_over, _f_over
     nbyte _f_return
-enddef _f_ddup
+enddef _f_pdup
 
-defword _f_ddrop, "ddrop"
+defword _f_pdrop, "pdrop"
     nbyte _f_drop, _f_drop
     nbyte _f_return
-enddef _f_ddrop
+enddef _f_pdrop
 
-defword _f_dswap, "dswap"
+defword _f_prot, "prot"
+    // ( a b c d e f -- c d e f a b )
+    //   5 4 3 2 1 0    3 2 1 0 5 4
+    nbyte _f_lcomma, _f_lcomma
+    nbyte _f_lcomma, _f_lcomma
+    nbyte _f_lcomma, _f_lcomma
+    nbyte _f_lit, 3, _f_lload
+    nbyte _f_lit, 2, _f_lload
+    nbyte _f_lit, 1, _f_lload
+    nbyte _f_lit, 0, _f_lload
+    nbyte _f_lit, 5, _f_lload
+    nbyte _f_lit, 4, _f_lload
+    nbyte _f_return
+enddef _f_prot
+
+defword _f_pnrot, "pnrot"
+    nbyte _f_prot, _f_prot
+    nbyte _f_return
+enddef _f_pnrot
+
+defword _f_pswap, "pswap"
     nbyte _f_rot, _f_lcomma
     nbyte _f_rot, _f_lit, 0, _f_lload
     nbyte _f_return
-enddef _f_dswap
+enddef _f_pswap
 
 defword _f_add_store, "+!"
     nbyte _f_dup, _f_load
@@ -475,6 +497,7 @@ defword _f_add_store, "+!"
 enddef _f_add_store
 
 defword _f_n_add, "n+"
+    // ( a b -- { a * NATIVE + b } )
     nbyte _f_swap, _f_lgnative, _f_shl, _f_add
     nbyte _f_return
 enddef _f_n_add
@@ -572,19 +595,19 @@ defword _f_count, "count"
 enddef _f_count
 
 defword _f_begin_case, "begin_case"
-    // ( -- t )
+    // ( -- 0 )
     nbyte _f_lit, 0
     nbyte _f_return
 enddef _f_begin_case
 
 defword _f_case, "case"
-    // ( 0 l:( -- t:cond ) l:( -- ..s ) -- 0 ) if t:cond == 0
-    // ( 0 l:( -- t:cond ) l:( -- ..s ) -- ..s 1 ) if t:cond != 0
-    // ( 1 l:( -- t ) l:( -- ..s ) -- 1 )
+    // ( ..a 0 l:( ..a -- t:cond ) l:( ..a -- ..s ) -- ..a 0 ) if t:cond == 0
+    // ( ..a 0 l:( ..a -- t:cond ) l:( ..a -- ..s ) -- ..s 1 ) if t:cond != 0
+    // ( ..a 1 l:( ..a -- t:cond ) l:( ..a -- ..s ) -- ..a 1 )
 
     nbyte _f_rot
     list 1f
-        nbyte _f_ddrop
+        nbyte _f_pdrop
         nbyte _f_lit, 1
         nbyte _f_return
     1:
@@ -641,6 +664,71 @@ defword _f_allot, "allot"
     nbyte _f_return
 enddef _f_allot
 
+defword _f_name_of_def, "name_of_def"
+    // ( p:def -- p:name n:name )
+    nbyte _f_dup
+    nbyte _f_lit, 2, _f_swap, _f_n_add, _f_load, _f_swap
+    nbyte _f_lit, 3, _f_swap, _f_n_add, _f_load
+    nbyte _f_return
+enddef _f_name_of_def
+
+defword _f_find_word, "find_word"
+    // ( p:word n:word -- p:def )
+    // -1 if not found
+
+    nbyte _f_of_last, _f_load
+
+    list 1f
+        // ( p:word n:word p:list )
+        nbyte _f_begin_case
+        list 2f
+            nbyte _f_dup, _f_lit, -1, _f_eq
+            nbyte _f_return
+        2:
+        list 2f
+            // Not found
+            nbyte _f_drop, _f_pdrop
+            nbyte _f_lit, -1
+            nbyte _f_lit, 0
+            nbyte _f_return
+        2:
+        nbyte _f_case
+
+        list 2f
+            nbyte _f_lcomma
+            nbyte _f_pdup, _f_lit, 0, _f_lload, _f_name_of_def
+            nbyte _f_s_eq
+            nbyte _f_lit, 0, _f_lload, _f_swap
+            nbyte _f_return
+        2:
+        list 2f
+            // Found
+            nbyte _f_nrot, _f_pdrop
+            nbyte _f_lit, 0
+            nbyte _f_return
+        2:
+        nbyte _f_case
+
+        list 2f
+            nbyte _f_lit, 1
+            nbyte _f_return
+        2:
+        list 2f
+            // Next
+            nbyte _f_lit, 1, _f_swap, _f_n_add, _f_load
+            nbyte _f_lit, 1
+            nbyte _f_return
+        2:
+        nbyte _f_case
+
+        nbyte _f_end_case
+        nbyte _f_return
+    1:
+    nbyte _f_repeat
+    nbyte _f_return
+
+enddef _f_find_word
+
 defword _f_is_whitespace, "?whitespace"
     nbyte _f_dup, _f_lit, ' ', _f_eq, _f_swap
     nbyte _f_lit, '\t', _f_eq, _f_or
@@ -656,7 +744,7 @@ defword _f_s_eq, "s="
         nbyte _f_return
     1:
     list 1f
-        nbyte _f_drop, _f_ddrop
+        nbyte _f_drop, _f_pdrop
         nbyte _f_lit, 0
         nbyte _f_return
     1:
@@ -664,18 +752,18 @@ defword _f_s_eq, "s="
     nbyte _f_return
 enddef _f_s_eq
 
-defword _f_parse_word_start, "_parse_word_start"
+defword _f_first_word_start, "_first_word_start"
     // ( p:end p:input -- n:word )
     nbyte _f_lit, 0, _f_nrot // ( n p:end p:input )
     list 1f
         nbyte _f_begin_case
             list 2f
                 // End of input
-                nbyte _f_ddup, _f_eq
+                nbyte _f_pdup, _f_eq
                 nbyte _f_return
             2:
             list 2f
-                nbyte _f_ddrop, _f_lit, 0
+                nbyte _f_pdrop, _f_lit, 0
                 nbyte _f_return
             2:
             nbyte _f_case
@@ -686,7 +774,7 @@ defword _f_parse_word_start, "_parse_word_start"
                 nbyte _f_return
             2:
             list 2f
-                nbyte _f_ddrop, _f_lit, 0
+                nbyte _f_pdrop, _f_lit, 0
                 nbyte _f_return
             2:
             nbyte _f_case
@@ -709,18 +797,17 @@ defword _f_parse_word_start, "_parse_word_start"
     1:
     nbyte _f_repeat
     nbyte _f_return
-enddef _f_parse_word_start
+enddef _f_first_word_start
 
-defword _f_parse_word, "parse_word"
-    // ( p:input n:input -- p:word n:word )
+defword _f_first_word, "_first_word"
+    // ( p:end p:input -- p:word n:word )
     // End of input and length 0 if no word found
-    nbyte _f_over, _f_add, _f_swap // ( p:end p:input )
 
     list 1f
         nbyte _f_begin_case
             list 2f
                 // End of input
-                nbyte _f_ddup, _f_eq
+                nbyte _f_pdup, _f_eq
                 nbyte _f_return
             2:
             list 2f
@@ -747,7 +834,7 @@ defword _f_parse_word, "parse_word"
             2:
             list 2f
                 nbyte _f_dup, _f_nrot // ( p:word p:end p:word )
-                nbyte _f_parse_word_start // ( p:word n:word )
+                nbyte _f_first_word_start // ( p:word n:word )
                 nbyte _f_lit, 0
                 nbyte _f_return
             2:
@@ -757,13 +844,203 @@ defword _f_parse_word, "parse_word"
     1:
     nbyte _f_repeat
     nbyte _f_return
-enddef _f_parse_word
+enddef _f_first_word
+
+defword _f_append_token, "_append_token"
+    // ( p:tokens n -- p:tokens )
+    nbyte _f_over, _f_store
+    nbyte _f_native, _f_add
+    nbyte _f_return
+enddef _f_append_token
+
+defword _f_do_list_start, "_do_list_start"
+    // ( p:fill p:tokens -- p:tokens p:tokens )
+    nbyte _f_over, _f_append_token
+    nbyte _f_nip, _f_dup
+    nbyte _f_return
+enddef _f_do_list_start
+
+defword _f_do_list_end, "_do_list_end"
+    // ( p:fill p:tokens -- p:oldfill p:tokens )
+    nbyte _f_swap, _f_dup
+    // ( p:tokens p:fill p:fill )
+    nbyte _f_native, _f_sub, _f_load, _f_nrot
+    // ( p:oldfill p:tokens p:fill )
+    nbyte _f_pdup, _f_sub, _f_swap, _f_store
+    nbyte _f_return
+enddef _f_do_list_end
+
+defword _f_process_word, "_process_word"
+    // ( p:fill p:tokens p:word n:word -- p:fill p:tokens 1 ) if success
+    // ( ... -- p:msg n:msg 0 ) if failure
+
+    nbyte _f_begin_case
+    list 1f
+        nbyte _f_pdup
+        str "["
+        nbyte _f_s_eq
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_pdrop
+        nbyte _f_lit, _f_litlist, _f_append_token
+        nbyte _f_do_list_start
+        nbyte _f_lit, 1
+        nbyte _f_return
+    1:
+    nbyte _f_case
+
+    list 1f
+        nbyte _f_pdup
+        str "]"
+        nbyte _f_s_eq
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_pdrop
+        nbyte _f_over, _f_lit, -1, _f_eq
+        list 2f
+            nbyte _f_pdrop
+            str "Unmatched closing bracket"
+            nbyte _f_lit, 0
+            nbyte _f_return
+        2:
+        list 2f
+            nbyte _f_lit, _f_return, _f_append_token
+            nbyte _f_do_list_end
+            nbyte _f_lit, 1
+            nbyte _f_return
+        2:
+        nbyte _f_ifelse
+        nbyte _f_return
+    1:
+    nbyte _f_case
+
+    list 1f
+        nbyte _f_lit, 1
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_pdup, _f_find_word
+        // ( p:fill p:tokens p:word n:word p:def )
+        nbyte _f_dup, _f_lit, -1, _f_eq
+        list 2f
+            nbyte _f_drop, _f_pdrop, _f_pdrop
+            str "Undefined word"
+            nbyte _f_lit, 0
+            nbyte _f_return
+        2:
+        list 2f
+            nbyte _f_nrot, _f_pdrop, _f_append_token
+            nbyte _f_lit, 1
+            nbyte _f_return
+        2:
+        nbyte _f_ifelse
+        nbyte _f_return
+    1:
+    nbyte _f_case
+
+    nbyte _f_end_case
+    nbyte _f_return
+enddef _f_process_word
+
+defword _f_process_line, "process_line"
+    // ( p:fill p:tokens p:line n:line -- p:fill p:tokens 1 ) if success
+    // ( ... -- p:word n:word p:msg n:msg 0 ) if failure
+
+    nbyte _f_over, _f_add, _f_swap
+    // ( p:fill p:tokens p:end p:line )
+
+    list 1f
+        nbyte _f_pdup, _f_pnrot
+        // ( p:end p:line p:fill p:tokens p:end p:line )
+        nbyte _f_first_word
+        // ( p:end p:line p:fill p:tokens p:word n:word )
+        nbyte _f_dup, _f_eqz
+        list 2f
+            // End of line
+            nbyte _f_pdrop, _f_pswap, _f_pdrop
+            // ( p:fill p:tokens )
+            nbyte _f_lit, 1 // Success
+            nbyte _f_lit, 0 // Don't continue
+            nbyte _f_return
+        2:
+        list 2f
+            nbyte _f_pdup, _f_pnrot
+            // ( p:end p:line p:word n:word p:fill p:tokens p:word n:word )
+            nbyte _f_process_word
+
+            list 3f
+                // Success
+                // ( p:end p:line p:word n:word p:fill p:tokens )
+                nbyte _f_pnrot, _f_add, _f_nip, _f_pswap
+                // ( p:end p:line p:fill p:tokens )
+                nbyte _f_pswap
+                // ( p:fill p:tokens p:end p:line )
+                nbyte _f_lit, 1 // Do continue
+                nbyte _f_return
+            3:
+            list 3f
+                // Failure
+                // ( p:end p:line p:word n:word p:msg n:msg )
+                nbyte _f_prot, _f_pdrop
+                // ( p:word n:word p:msg n:msg )
+                nbyte _f_lit, 0 // Failure
+                nbyte _f_lit, 0 // Don't continue
+                nbyte _f_return
+            3:
+            nbyte _f_ifelse
+            nbyte _f_return
+        2:
+        nbyte _f_ifelse
+        nbyte _f_return
+    1:
+    nbyte _f_repeat
+    nbyte _f_return
+enddef _f_process_line
+
+defword _f_print_error_line, "print_error_line"
+    // ( p:line n:line p:word n:word )
+    nbyte _f_lcomma, _f_lcomma
+    // ( p:line n:line )
+    nbyte _f_over, _f_add, _f_swap
+    // ( p:lineend p:line )
+    nbyte _f_dup, _f_lit, 1, _f_lload, _f_swap, _f_sub, _f_s_dot
+    str ">>>"
+    nbyte _f_s_dot
+    nbyte _f_lit, 1, _f_lload
+    nbyte _f_lit, 0, _f_lload
+    nbyte _f_pdup, _f_s_dot
+    str "<<<"
+    nbyte _f_s_dot
+    nbyte _f_add
+    // ( p:lineend p:afterword )
+    nbyte _f_dup, _f_nrot, _f_sub, _f_s_dot
+    nbyte _f_return
+enddef _f_print_error_line
 
 defword _f_test, "_test"
-    str " Hello, world!"
-    nbyte _f_dump, _f_parse_word, _f_dump
-    nbyte _f_s_dot
-    nbyte _f_lit, '\n', _f_sys_putchar
+    nbyte _f_lit, -1, _f_of_token
+    str "[ native [ ] run ]"
+    nbyte _f_pdup, _f_pnrot
+    nbyte _f_process_line, _f_dump
+    list 1f
+        nbyte _f_pswap, _f_pdrop
+        str "okay"
+        nbyte _f_s_dot
+        nbyte _f_lit, '\n', _f_sys_putchar
+        nbyte _f_dump
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_dump
+        nbyte _f_s_dot
+        nbyte _f_lit, '\n', _f_sys_putchar
+        nbyte _f_print_error_line
+        nbyte _f_lit, '\n', _f_sys_putchar
+        nbyte _f_return
+    1:
+    nbyte _f_ifelse
     nbyte _f_return
 enddef _f_test
 
@@ -797,8 +1074,6 @@ input_buffer:
     .zero 1024
 token_buffer:
     .zero 1024
-
-    .balign 4096
 data_stack:
     .zero 4096
 return_stack:
