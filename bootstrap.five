@@ -1,6 +1,70 @@
-"Welcome to Fiveth! It's tradition here to hello five times:" s. 10 sys_putchar
+; The first few words have to be manually constructed in allot space
+=here @ dup
+"commit" tuck dup =here +! pswap swap pswap memcpy
+=here @ aligned =here !
 
-5 [
-    drop ; Drop the counter which we don't use
-    "Hello fiveth user" s. 10 sys_putchar
-] count
+; ( p:name n:name )
+
+; As a reminder the structure is { code link name namelen }
+=here @ nrot
+=_rundef =here @ ! native =here +!
+=last @ =here @ ! native =here +!
+swap =here @ ! native =here +!
+=here @ ! native =here +!
+=last !
+
+=here @
+[
+    ; ( p n -- ) allot and copy block
+    =here @ nrot
+    dup =here +!
+    memcpy
+] dup @ swap native + swap dup =here +! memcpy
+
+=here @ "defraw" tuck commit
+=here @ aligned =here !
+
+=here @ nrot
+=_rundef =here @ ! native =here +!
+=last @ =here @ ! native =here +!
+swap =here @ ! native =here +!
+=here @ ! native =here +!
+=last !
+
+[
+    ; ( p:name n:name p:code -- )
+    nrot =here @ over pswap
+    ; ( p:code p:name' n:name' p:name n:name )
+    commit =here @ aligned =here !
+    ; ( p:code p:name' n:name' )
+    swap rot
+    ; ( n:name' p:name' p:code )
+    =here @ ! native =here +!
+    =last @  =here @ ! native =here +!
+    =here @ ! native =here +!
+    =here @ ! native =here +!
+    =here @  4 neg swap n+  =last !
+] dup @ swap native + swap commit
+
+"raw_list" =_rundef defraw
+[
+    ; ( l -- p n )
+    dup @ swap native + swap
+] dup @ swap native + swap commit
+
+"define" =_rundef defraw
+[
+    nrot
+    =_rundef defraw
+    raw_list commit
+] raw_list commit
+
+"here" [ =here @ ] define
+"allot" [ =here +! ] define
+"," [ here native allot ! ] define
+
+"hello" [
+    "Hello, world!" s. 10 sys_putchar
+] define
+
+hello

@@ -412,6 +412,9 @@ constword _f_lgnative, "lgnative", LGNATIVE
 constword _f_of_input, "=input_buffer", input_buffer
 constword _f_of_token, "=token_buffer", token_buffer
 
+constword _f_of_rundef, "=_rundef", _code_rundef
+constword _f_of_runconst, "=_runconst", _code_runconst
+
 constword _f_of_bootstrap_script, "=bootstrap_script", bootstrap_script
 constword _f_of_bootstrap_script_end, "=bootstrap_script_end", bootstrap_script_end
 
@@ -708,16 +711,6 @@ defword _f_s_dot, "s."
     nbyte _f_drop
     nbyte _f_return
 enddef _f_s_dot
-
-defword _f_here, "here"
-    nbyte _f_of_here, _f_load
-    nbyte _f_return
-enddef _f_here
-
-defword _f_allot, "allot"
-    nbyte _f_of_here, _f_add_store
-    nbyte _f_return
-enddef _f_allot
 
 defword _f_name_of_def, "name_of_def"
     // ( p:def -- p:name n:name )
