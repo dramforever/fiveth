@@ -419,6 +419,7 @@ varword _f_of_here, "=here", here_pointer
 varword _f_of_last, "=last", last_word
 
 defword _f_dup, "dup"
+    // ( a -- a a )
     nbyte _f_lcomma
     nbyte _f_lit, 0, _f_lload
     nbyte _f_lit, 0, _f_lload
@@ -426,6 +427,7 @@ defword _f_dup, "dup"
 enddef _f_dup
 
 defword _f_nip, "nip"
+    // ( a b -- b )
     nbyte _f_lcomma
     nbyte _f_drop
     nbyte _f_lit, 0, _f_lload
@@ -433,6 +435,7 @@ defword _f_nip, "nip"
 enddef _f_nip
 
 defword _f_swap, "swap"
+    // ( a b -- b a )
     nbyte _f_lcomma, _f_lcomma
     nbyte _f_lit, 0, _f_lload
     nbyte _f_lit, 1, _f_lload
@@ -440,6 +443,7 @@ defword _f_swap, "swap"
 enddef _f_swap
 
 defword _f_rot, "rot"
+    // ( a b c -- b c a )
     nbyte _f_lcomma, _f_lcomma, _f_lcomma
     nbyte _f_lit, 1, _f_lload
     nbyte _f_lit, 0, _f_lload
@@ -448,16 +452,19 @@ defword _f_rot, "rot"
 enddef _f_rot
 
 defword _f_nrot, "nrot"
+    // ( a b c -- c a b )
     nbyte _f_rot, _f_rot
     nbyte _f_return
 enddef _f_nrot
 
 defword _f_drop, "drop"
+    // ( a -- )
     nbyte _f_lcomma
     nbyte _f_return
 enddef _f_drop
 
 defword _f_over, "over"
+    // ( a b -- a b a )
     nbyte _f_lcomma, _f_lcomma
     nbyte _f_lit, 1, _f_lload
     nbyte _f_lit, 0, _f_lload
@@ -466,6 +473,7 @@ defword _f_over, "over"
 enddef _f_over
 
 defword _f_tuck, "tuck"
+    // ( a b -- b a b )
     nbyte _f_lcomma, _f_lcomma
     nbyte _f_lit, 0, _f_lload
     nbyte _f_lit, 1, _f_lload
@@ -474,11 +482,13 @@ defword _f_tuck, "tuck"
 enddef _f_tuck
 
 defword _f_pdup, "pdup"
+    // ( a b -- a b a b )
     nbyte _f_over, _f_over
     nbyte _f_return
 enddef _f_pdup
 
 defword _f_pdrop, "pdrop"
+    // ( a b -- )
     nbyte _f_drop, _f_drop
     nbyte _f_return
 enddef _f_pdrop
@@ -499,11 +509,13 @@ defword _f_prot, "prot"
 enddef _f_prot
 
 defword _f_pnrot, "pnrot"
+    // ( a b c d e f -- e f a b c d )
     nbyte _f_prot, _f_prot
     nbyte _f_return
 enddef _f_pnrot
 
 defword _f_pswap, "pswap"
+    // ( a b c d -- c d a b )
     nbyte _f_rot, _f_lcomma
     nbyte _f_rot, _f_lit, 0, _f_lload
     nbyte _f_return
@@ -573,12 +585,14 @@ defword _f_aligned, "aligned"
 enddef _f_aligned
 
 defword _f_run, "run"
+    // ( l -- )
     nbyte _f_native, _f_add
     nbyte _f_runraw
     nbyte _f_return
 enddef _f_run
 
 defword _f_ifelse, "ifelse"
+    // ( t l l -- )
     nbyte _f_rot
     nbyte _f_jif, 1f
     // else
@@ -593,6 +607,7 @@ defword _f_ifelse, "ifelse"
 enddef _f_ifelse
 
 defword _f_if, "if"
+    // ( t l -- )
     nbyte _f_swap, _f_eqz, _f_jif, 1f
     nbyte _f_run
     nbyte _f_jump, 2f
@@ -603,6 +618,8 @@ defword _f_if, "if"
 enddef _f_if
 
 defword _f_repeat, "repeat"
+    // ( l:( -- t ) -- )
+    // Repeat if returns true, stop otherwise
     nbyte _f_lcomma
 1:
     nbyte _f_lit, 0, _f_lload
@@ -613,6 +630,8 @@ defword _f_repeat, "repeat"
 enddef _f_repeat
 
 defword _f_count, "count"
+    // ( n l:( n -- ) -- )
+    // Loops from 0 (inclusive) to n (exclusive)
     nbyte _f_lcomma, _f_lcomma
     nbyte _f_lit, 0, _f_lcomma
 1:
@@ -673,6 +692,7 @@ defword _f_case, "case"
 enddef _f_case
 
 defword _f_end_case, "end_case"
+    // ( t -- )
     nbyte _f_drop
     nbyte _f_return
 enddef _f_end_case
@@ -1192,9 +1212,7 @@ defword _f_process_line, "process_line"
             list 3f
                 // Success
                 // ( p:end p:line p:word n:word p:fill p:tokens )
-                nbyte _f_pnrot, _f_add, _f_nip, _f_pswap
-                // ( p:end p:line p:fill p:tokens )
-                nbyte _f_pswap
+                nbyte _f_pnrot, _f_add, _f_nip
                 // ( p:fill p:tokens p:end p:line )
                 nbyte _f_lit, 1 // Do continue
                 nbyte _f_return
@@ -1219,7 +1237,7 @@ defword _f_process_line, "process_line"
 enddef _f_process_line
 
 defword _f_print_error_line, "print_error_line"
-    // ( p:line n:line p:word n:word )
+    // ( p:line n:line p:word n:word -- )
     nbyte _f_lcomma, _f_lcomma
     // ( p:line n:line )
     nbyte _f_over, _f_add, _f_swap
@@ -1245,6 +1263,7 @@ defword _f_buf_get_line, "buf_get_line"
         // ( p:buf p:end p:line-end )
         nbyte _f_begin_case
         list 2f
+            // Got EOF
             nbyte _f_pdup, _f_eq
             nbyte _f_return
         2:
@@ -1256,6 +1275,7 @@ defword _f_buf_get_line, "buf_get_line"
         nbyte _f_case
 
         list 2f
+            // Got newline
             nbyte _f_dup, _f_b_load_u
             nbyte _f_lit, '\n', _f_eq
             nbyte _f_return
@@ -1269,6 +1289,7 @@ defword _f_buf_get_line, "buf_get_line"
         nbyte _f_case
 
         list 2f
+            // Other char, keep going
             nbyte _f_lit, 1
             nbyte _f_return
         2:
@@ -1325,7 +1346,7 @@ defword _f_evaluate, "evaluate"
                     nbyte _f_pdrop
                     // ( p:newbuf n:newbuf )
                     nbyte _f_lcomma, _f_lcomma
-                    nbyte _f_of_token, _f_runraw
+                    nbyte _f_of_token, _f_runraw // Run with clean stack
                     nbyte _f_lit, 1, _f_lload
                     nbyte _f_lit, 0, _f_lload
                     nbyte _f_lit, -1, _f_of_token
@@ -1334,11 +1355,13 @@ defword _f_evaluate, "evaluate"
                 4:
                 nbyte _f_if
                 nbyte _f_pswap
+                // ( p:fill p:token p:newbuf n:newbuf )
                 nbyte _f_lit, 1
                 nbyte _f_return
             3:
             list 3f
                 // ( p:buf n:buf p:line n:line p:word n:word p:msg n:msg )
+                // Print error and quit evaluating
                 nbyte _f_s_dot
                 nbyte _f_lit, '\n', _f_sys_putchar
                 nbyte _f_print_error_line
