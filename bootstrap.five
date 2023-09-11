@@ -1,70 +1,44 @@
-; The first few words have to be manually constructed in allot space
-=here @ dup
-"commit" tuck dup =here +! pswap swap pswap memcpy
-=here @ aligned =here !
-
+; Bootstrapping `define`: First, create `rawdef` in allot space
+=here @ dup "rawdef" tuck dup =here +! pswap swap pswap memcpy align
 ; ( p:name n:name )
 
 ; As a reminder the structure is { code link name namelen }
-=here @ nrot
-=_rundef =here @ ! native =here +!
-=last @ =here @ ! native =here +!
-swap =here @ ! native =here +!
-=here @ ! native =here +!
+=here @ 0 5 +n =here +!
+=_runindirect over !
+=last @ over 1 +n !
+tuck 3 +n !
+tuck 2 +n !
+
+[
+    ; ( p:name n:name p:code n:payload -- p:def )
+    align =here @ swap
+    ; ( p:name n:name p:code p:def n:payload -- )
+    4 +n aligned =here +!
+    ; ( p:name n:name p:code p:def -- )
+
+    tuck !
+    =last @ over 1 +n !
+    tuck 3 +n !
+    tuck 2 +n !
+
+    dup =last !
+] over 4 +n !
+
 =last !
 
-=here @
+; Then we can `define` in terms of `rawdef`
+"define" =_runindirect native rawdef
 [
-    ; ( p n -- ) allot and copy block
-    =here @ nrot
-    dup =here +!
-    memcpy
-] dup @ swap native + swap dup =here +! memcpy
-
-=here @ "defraw" tuck commit
-=here @ aligned =here !
-
-=here @ nrot
-=_rundef =here @ ! native =here +!
-=last @ =here @ ! native =here +!
-swap =here @ ! native =here +!
-=here @ ! native =here +!
-=last !
-
-[
-    ; ( p:name n:name p:code -- )
-    nrot =here @ over pswap
-    ; ( p:code p:name' n:name' p:name n:name )
-    commit =here @ aligned =here !
-    ; ( p:code p:name' n:name' )
-    swap rot
-    ; ( n:name' p:name' p:code )
-    =here @ ! native =here +!
-    =last @  =here @ ! native =here +!
-    =here @ ! native =here +!
-    =here @ ! native =here +!
-    =here @  4 neg swap n+  =last !
-] dup @ swap native + swap commit
-
-"raw_list" =_rundef defraw
-[
-    ; ( l -- p n )
-    dup @ swap native + swap
-] dup @ swap native + swap commit
-
-"define" =_rundef defraw
-[
-    nrot
-    =_rundef defraw
-    raw_list commit
-] raw_list commit
+    ; ( p:name n:name l -- )
+    nrot =_runindirect native rawdef
+    4 +n !
+] swap 4 +n !
 
 "here" [ =here @ ] define
 "allot" [ =here +! ] define
-"," [ here native allot ! ] define
+
+"nl" [ 10 sys_putchar ] define
 
 "hello" [
-    "Hello, world!" s. 10 sys_putchar
+    "Hello, world!" s. nl
 ] define
-
-hello

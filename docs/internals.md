@@ -40,15 +40,9 @@ defined and is equivalent to `w@`.
 Strings are `start` and `len`. They're usually represented as two elements on
 the stack `p:str n:str`.
 
-Lists are like quotations in Factor: `[ + ]`. For convenience, lists are
-"counted", meaning the first native at the pointer is the length (in bytes) of
-the payload after. Moreover, lists implicitly end with a `return`. So the list
-`[ + ]` as represented by `l:list` is a pointer to the start of these three
-natives:
-
-```
-2 * NATIVE, _f_add, _f_return
-```
+Lists are like quotations in Factor: `[ + ]`. Lists implicitly end with a
+`return`. So the list `[ + ]` as represented by `l:list` is a pointer to two
+word pointers, `+, return`.
 
 ## Dictionary
 
@@ -103,25 +97,10 @@ control structures. It's also difficult to define new words that work on locals.
 
 ## Allot space and committed literals
 
-As in forth, this is where new definitions and new data go. `here` gives you the
-current top of allot space, and `n allot` bumps the top pointer by `n` bytes.
+The allot space is simply maintained as a pointer to the top of the allocated
+area. `here` gives you the current pointer, and `n allot` bumps the pointer by
+`n` bytes.
 
-The allot space is so named because `allot` is used to, well, allot a certain
-number of bytes from it.
-
-Literal strings and lists have to be *committed* to allot space to become
-permanent. `commit ; ( p n -- )` allots data space and copies data to it. For
-lists, `rawlist` converts it to pointer-and-byte-count form.
-
-When you define a word like so:
-
-```
-"hello" [
-    "Hello, world!" s. nl
-] define
-```
-
-The string `"hello"` and the list `[ "Hello, world!" s. nl ]` are committed to
-allot space, so that they're not lost after execution. The string `"Hello,
-world!"` is (thankfully) part of the list payload and does not need to be
-committed separately.
+For advanced usage, you can manipulate the pointer directly by loading or
+storing to `=here`. Note that unlike in Forth, parsing uses the allot space, so
+generally should be done in .

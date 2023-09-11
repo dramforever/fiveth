@@ -80,6 +80,14 @@ func _code_rundef
     go
 endfunc _code_rundef
 
+func _code_runindirect
+    addi s_ip, s_ip, NATIVE
+    enter_frame
+    ln s_ip, (-1 * NATIVE)(s_ip)
+    ln s_ip, o_payload(s_ip)
+    go
+endfunc _code_runindirect
+
     .section .data
 
     .macro _newword label, name, code, link=1001b
@@ -185,7 +193,7 @@ endcode _f_litstr
 
 codeword _f_litlist, "_litlist"
     ln a1, (1 * NATIVE)(s_ip)
-    addi a0, s_ip, 1 * NATIVE
+    addi a0, s_ip, 2 * NATIVE
     sn a0, (s_dsp)
     addi s_dsp, s_dsp, 1 * NATIVE
     add s_ip, s_ip, a1
@@ -193,13 +201,13 @@ codeword _f_litlist, "_litlist"
     go
 endcode _f_litlist
 
-codeword _f_runraw, "runraw"
+codeword _f_run, "run"
     addi s_ip, s_ip, NATIVE
     enter_frame
     addi s_dsp, s_dsp, - NATIVE
     ln s_ip, (s_dsp)
     go
-endcode _f_runraw
+endcode _f_run
 
     // Stack frame primitives
 
@@ -409,10 +417,8 @@ endcode _f_dump_array
 constword _f_native, "native", NATIVE
 constword _f_lgnative, "lgnative", LGNATIVE
 
-constword _f_of_input, "=input_buffer", input_buffer
-constword _f_of_token, "=token_buffer", token_buffer
-
 constword _f_of_rundef, "=_rundef", _code_rundef
+constword _f_of_runindirect, "=_runindirect", _code_runindirect
 constword _f_of_runconst, "=_runconst", _code_runconst
 
 constword _f_of_bootstrap_script, "=bootstrap_script", bootstrap_script
@@ -531,11 +537,11 @@ defword _f_add_store, "+!"
     nbyte _f_return
 enddef _f_add_store
 
-defword _f_n_add, "n+"
-    // ( a b -- { a * NATIVE + b } )
-    nbyte _f_swap, _f_lgnative, _f_shl, _f_add
+defword _f_add_n, "+n"
+    // ( a b -- { a + b * NATIVE } )
+    nbyte _f_lgnative, _f_shl, _f_add
     nbyte _f_return
-enddef _f_n_add
+enddef _f_add_n
 
 defword _f_gez, ">=0"
     nbyte _f_ltz, _f_eqz
@@ -587,12 +593,12 @@ defword _f_aligned, "aligned"
     nbyte _f_return
 enddef _f_aligned
 
-defword _f_run, "run"
-    // ( l -- )
-    nbyte _f_native, _f_add
-    nbyte _f_runraw
+defword _f_align, "align"
+    nbyte _f_of_here, _f_load
+    nbyte _f_aligned
+    nbyte _f_of_here, _f_store
     nbyte _f_return
-enddef _f_run
+enddef _f_align
 
 defword _f_ifelse, "ifelse"
     // ( t l l -- )
@@ -715,8 +721,8 @@ enddef _f_s_dot
 defword _f_name_of_def, "name_of_def"
     // ( p:def -- p:name n:name )
     nbyte _f_dup
-    nbyte _f_lit, 2, _f_swap, _f_n_add, _f_load, _f_swap
-    nbyte _f_lit, 3, _f_swap, _f_n_add, _f_load
+    nbyte _f_lit, 2, _f_add_n, _f_load, _f_swap
+    nbyte _f_lit, 3, _f_add_n, _f_load
     nbyte _f_return
 enddef _f_name_of_def
 
@@ -763,7 +769,7 @@ defword _f_find_word, "find_word"
         2:
         list 2f
             // Next
-            nbyte _f_lit, 1, _f_swap, _f_n_add, _f_load
+            nbyte _f_lit, 1, _f_add_n, _f_load
             nbyte _f_lit, 1
             nbyte _f_return
         2:
@@ -1302,7 +1308,8 @@ enddef _f_buf_get_line
 
 defword _f_evaluate, "evaluate"
     // ( p:buf n:buf -- ??? )
-    nbyte _f_lit, -1, _f_of_token
+    nbyte _f_lit, -1
+    nbyte _f_align, _f_of_here, _f_load
     nbyte _f_pswap
     // ( p:fill p:token p:buf n:buf )
     list 1f
@@ -1334,15 +1341,21 @@ defword _f_evaluate, "evaluate"
                 nbyte _f_pswap
                 // ( p:newbuf n:newbuf p:fill p:token )
                 nbyte _f_over, _f_lit, -1, _f_eq
+                nbyte _f_over, _f_of_here, _f_load, _f_eq, _f_eqz, _f_and
                 list 4f
                     nbyte _f_lit, _f_return, _f_append_token
-                    nbyte _f_pdrop
-                    // ( p:newbuf n:newbuf )
-                    nbyte _f_lcomma, _f_lcomma
-                    nbyte _f_of_token, _f_runraw // Run with clean stack
+                    nbyte _f_nip
+                    // ( p:newbuf n:newbuf p:token )
+                    nbyte _f_of_here, _f_load, _f_swap
+                    // ( p:newbuf n:newbuf p:start_tokens p:token )
+                    nbyte _f_of_here, _f_store
+                    // ( p:newbuf n:newbuf p:start_tokens )
+                    nbyte _f_nrot, _f_lcomma, _f_lcomma
+                    nbyte _f_run // Run with clean stack
                     nbyte _f_lit, 1, _f_lload
                     nbyte _f_lit, 0, _f_lload
-                    nbyte _f_lit, -1, _f_of_token
+                    nbyte _f_lit, -1
+                    nbyte _f_align, _f_of_here, _f_load
                     // ( p:newbuf n:newbuf p:fill p:token )
                     nbyte _f_return
                 4:
@@ -1406,10 +1419,6 @@ endfunc main
 
     .section .bss
     .p2align LGNATIVE
-input_buffer:
-    .zero 1024
-token_buffer:
-    .zero 1024 * 3
 data_stack:
     .zero 4096
 return_stack:
