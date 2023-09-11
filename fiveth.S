@@ -1146,6 +1146,9 @@ defword _f_process_word, "_process_word"
             nbyte _f_return
         2:
         list 2f
+            nbyte _f_drop, _f_pdrop
+            str "Invalid number"
+            nbyte _f_lit, 0
             nbyte _f_return
         2:
         nbyte _f_ifelse
