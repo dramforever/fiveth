@@ -42,3 +42,21 @@ tuck 2 +n !
 "hello" [
     "Hello, world!" s. nl
 ] define
+
+"words" [
+    =last @
+    [
+        dup 1 neg =
+        [
+            drop 0
+        ] [
+            dup name_of_def s. " " s.
+            1 +n @
+            1
+        ] ifelse
+    ] repeat
+    nl
+] define
+
+hello
+"Currently defined words: " s. words
