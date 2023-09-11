@@ -38,17 +38,6 @@
         .size \name, . - \name
     .endm
 
-    .macro go
-        ln a0, (s_ip)
-        ln a0, (a0)
-        jr a0
-    .endm
-
-    .macro next
-        addi s_ip, s_ip, NATIVE
-        go
-    .endm
-
 #define o_code (0 * NATIVE)
 #define o_link (1 * NATIVE)
 #define o_name (2 * NATIVE)
@@ -57,12 +46,23 @@
 
     .section .text
 
+func _do_next
+    addi s_ip, s_ip, NATIVE
+    // Falls through to _do_go
+endfunc _do_next
+
+func _do_go
+    ln a0, (s_ip)
+    ln a0, (a0)
+    jr a0
+endfunc _do_go
+
 func _code_runconst
     ln a0, (s_ip)
     ln a0, o_payload(a0)
     sn a0, (s_dsp)
     addi s_dsp, s_dsp, NATIVE
-    next
+    tail _do_next
 endfunc _code_runconst
 
     .macro enter_frame
@@ -77,7 +77,7 @@ func _code_rundef
     enter_frame
     ln s_ip, (-1 * NATIVE)(s_ip)
     addi s_ip, s_ip, o_payload
-    go
+    tail _do_go
 endfunc _code_rundef
 
 func _code_runindirect
@@ -85,7 +85,7 @@ func _code_runindirect
     enter_frame
     ln s_ip, (-1 * NATIVE)(s_ip)
     ln s_ip, o_payload(s_ip)
-    go
+    tail _do_go
 endfunc _code_runindirect
 
     .section .data
@@ -161,14 +161,14 @@ endfunc _code_\label
     // First word in the linked list requires link = -1
 codeword _f_bkpt, "bkpt", -1
     ebreak
-    next
+    tail _do_next
 endcode _f_bkpt
 
 codeword _f_return, "return"
     addi s_rsp, s_rfp, -2 * NATIVE
     ln s_rfp, (0 * NATIVE)(s_rsp)
     ln s_ip, (1 * NATIVE)(s_rsp)
-    go
+    tail _do_go
 endcode _f_return
 
 codeword _f_lit, "_lit"
@@ -176,7 +176,7 @@ codeword _f_lit, "_lit"
     sn a0, (s_dsp)
     addi s_dsp, s_dsp, NATIVE
     addi s_ip, s_ip, 2 * NATIVE
-    go
+    tail _do_go
 endcode _f_lit
 
 codeword _f_litstr, "_litstr"
@@ -188,7 +188,7 @@ codeword _f_litstr, "_litstr"
     add s_ip, a0, a1
     addi s_ip, s_ip, NATIVE - 1
     andi s_ip, s_ip, ~ (NATIVE - 1)
-    go
+    tail _do_go
 endcode _f_litstr
 
 codeword _f_litlist, "_litlist"
@@ -198,7 +198,7 @@ codeword _f_litlist, "_litlist"
     addi s_dsp, s_dsp, 1 * NATIVE
     add s_ip, s_ip, a1
     addi s_ip, s_ip, 2 * NATIVE
-    go
+    tail _do_go
 endcode _f_litlist
 
 codeword _f_run, "run"
@@ -206,7 +206,7 @@ codeword _f_run, "run"
     enter_frame
     addi s_dsp, s_dsp, - NATIVE
     ln s_ip, (s_dsp)
-    go
+    tail _do_go
 endcode _f_run
 
     // Stack frame primitives
@@ -216,7 +216,7 @@ codeword _f_lcomma, "l,"
     ln a0, (s_dsp)
     sn a0, (s_rsp)
     addi s_rsp, s_rsp, NATIVE
-    next
+    tail _do_next
 endcode _f_lcomma
 
 codeword _f_lload, "l@"
@@ -225,7 +225,7 @@ codeword _f_lload, "l@"
     add a0, s_rfp, a0
     ln a0, (a0)
     sn a0, (-1 * NATIVE)(s_dsp)
-    next
+    tail _do_next
 endcode _f_lload
 
 codeword _f_lstore, "l!"
@@ -235,33 +235,33 @@ codeword _f_lstore, "l!"
     slli a1, a1, LGNATIVE
     add a1, s_rfp, a1
     sn a0, (a1)
-    next
+    tail _do_next
 endcode _f_lstore
 
 codeword _f_lhere, "lhere"
     sn s_rsp, (s_dsp)
     addi s_dsp, s_dsp, 1 * NATIVE
-    next
+    tail _do_next
 endcode _f_lhere
 
 codeword _f_lallot, "lallot"
     addi s_dsp, s_dsp, -1 * NATIVE
     ln a0, (s_dsp)
     add s_rsp, s_rsp, a0
-    next
+    tail _do_next
 endcode _f_lallot
 
 codeword _f_lalign, "lalign"
     addi s_rsp, s_rsp, NATIVE - 1
     andi s_rsp, s_rsp, ~ (NATIVE - 1)
-    next
+    tail _do_next
 endcode _f_lalign
 
     // Control flow primitives
 
 codeword _f_jump, "_jump"
     ln s_ip, (1 * NATIVE)(s_ip)
-    go
+    tail _do_go
 endcode _f_jump
 
 codeword _f_jif, "_jif"
@@ -272,7 +272,7 @@ codeword _f_jif, "_jif"
     beqz a0, 1f
     mv s_ip, a1
 1:
-    go
+    tail _do_go
 endcode _f_jif
 
     .macro load_like label, name, insn
@@ -280,7 +280,7 @@ endcode _f_jif
         ln a0, (-1 * NATIVE)(s_dsp)
         \insn a0, (a0)
         sn a0, (-1 * NATIVE)(s_dsp)
-        next
+        tail _do_next
     endcode \label
     .endm
 
@@ -303,7 +303,7 @@ endcode _f_jif
         ln a0, (0 * NATIVE)(s_dsp)
         ln a1, (1 * NATIVE)(s_dsp)
         \insn a0, (a1)
-        next
+        tail _do_next
     endcode \label
     .endm
 
@@ -319,7 +319,7 @@ codeword \label, "\name"
         ln a1, (0 * NATIVE)(s_dsp)
         \insn a0, a0, a1
         sn a0, (-1 * NATIVE)(s_dsp)
-        next
+        tail _do_next
 endcode \label
     .endm
 
@@ -339,7 +339,7 @@ codeword \label, "\name"
         ln a0, (-1 * NATIVE)(s_dsp)
         \insn a0, a0
         sn a0, (-1 * NATIVE)(s_dsp)
-        next
+        tail _do_next
 endcode \label
     .endm
 
@@ -356,7 +356,7 @@ codeword _f_mul_10, "*10"
     slli a1, a0, 2 // a1 = (n * 2) * 4 = n * 8
     add a0, a0, a1 // a0 = n * 2 + n * 8 = n * 10
     sn a0, (-1 * NATIVE)(s_dsp)
-    next
+    tail _do_next
 endcode _f_mul_10
 
 codeword _f_memcpy, "memcpy"
@@ -365,7 +365,7 @@ codeword _f_memcpy, "memcpy"
     ln a1, (1 * NATIVE)(s_dsp)
     ln a2, (2 * NATIVE)(s_dsp)
     call memcpy
-    next
+    tail _do_next
 endcode _f_memcpy
 
 codeword _f_memcmp, "memcmp"
@@ -375,7 +375,7 @@ codeword _f_memcmp, "memcmp"
     ln a2, (1 * NATIVE)(s_dsp)
     call memcmp
     sn a0, (-1 * NATIVE)(s_dsp)
-    next
+    tail _do_next
 endcode _f_memcmp
 
 codeword _f_sys_exit, "sys_exit"
@@ -388,14 +388,14 @@ codeword _f_sys_putchar, "sys_putchar"
     addi s_dsp, s_dsp, -1 * NATIVE
     lbu a0, (s_dsp)
     call putchar
-    next
+    tail _do_next
 endcode _f_sys_putchar
 
 codeword _f_sys_getchar, "sys_getchar"
     call getchar
     sn a0, (s_dsp)
     addi s_dsp, s_dsp, 1 * NATIVE
-    next
+    tail _do_next
 endcode _f_sys_getchar
 
 codeword _f_dump, "_dump"
@@ -403,7 +403,7 @@ codeword _f_dump, "_dump"
     sub a1, s_dsp, a0
     srli a1, a1, LGNATIVE
     call _dump_array
-    next
+    tail _do_next
 endcode _f_dump
 
 codeword _f_dump_array, "_dump_array"
@@ -411,7 +411,7 @@ codeword _f_dump_array, "_dump_array"
     ln a0, (0 * NATIVE)(s_dsp)
     ln a1, (1 * NATIVE)(s_dsp)
     call _dump_array
-    next
+    tail _do_next
 endcode _f_dump_array
 
 constword _f_native, "native", NATIVE
@@ -1417,7 +1417,7 @@ func main
     mv s_rfp, s_rsp
     la s_ip, _f_init
     addi s_ip, s_ip, o_payload
-    go
+    tail _do_go
 endfunc main
 
     .section .bss
