@@ -1409,7 +1409,7 @@ endfunc main
 input_buffer:
     .zero 1024
 token_buffer:
-    .zero 1024
+    .zero 1024 * 3
 data_stack:
     .zero 4096
 return_stack:
