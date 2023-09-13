@@ -88,8 +88,12 @@ tuck 2 +n !
     "]" s. nl
 ] define
 
-[
-    sys_getchar
-    dup 1 neg =
-    [ drop 0 ] [ sys_putchar 1 ] ifelse
-] repeat
+"cat_program" [
+    [
+        sys_getchar
+        dup 1 neg =
+        [ drop 0 ] [ sys_putchar 1 ] ifelse
+    ] repeat
+] define
+
+words
