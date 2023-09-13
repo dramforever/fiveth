@@ -1,50 +1,43 @@
-#if ! (__riscv_xlen == 32 || __riscv_xlen == 64)
-# error "Sanity check: __riscv_xlen should be 32 or 64"
-#endif
-
-#if __riscv_xlen == 32
-
-#define NATIVE 4
-#define LGNATIVE 2
-#define ln lw
-#define sn sw
-#define nbyte .4byte
-
-#else // __riscv_xlen == 64
-
-#define NATIVE 8
-#define LGNATIVE 3
-#define ln ld
-#define sn sd
-#define nbyte .8byte
-
-#endif
-
-#define s_dsp s0
-#define s_ip s1
-#define s_rsp s2
-#define s_rfp s3
-
-// Stack alignment
-#define ALIGN(offset) (((offset) + 0xf) & ~0xf)
-
-    .macro func name
-        .p2align 1
-        .type \name, @function
-\name:
-    .endm
-
-    .macro endfunc name
-        .size \name, . - \name
-    .endm
-
-#define o_code (0 * NATIVE)
-#define o_link (1 * NATIVE)
-#define o_name (2 * NATIVE)
-#define o_namelen (3 * NATIVE)
-#define o_payload (4 * NATIVE)
+#include "fiveth_defs.h"
 
     .section .text
+
+    // void memcmp(const char *a, const char *b, size_t len)
+    .global memcmp
+func memcmp
+    add a2, a2, a0
+    li a3, 0
+    beq a0, a2, 2f
+1:
+    lbu a3, (a0)
+    lbu a4, (a1)
+    sltu a5, a3, a4
+    sltu a6, a4, a3
+    sub a3, a6, a5
+    bnez a3, 2f
+
+    addi a0, a0, 1
+    addi a1, a1, 1
+    bne a0, a2, 1b
+2:
+    mv a0, a3
+    ret
+endfunc memcmp
+
+    // void memcpy(char *dest, const char *src, size_t len)
+    .global memcpy
+func memcpy
+    add a2, a2, a0
+    beq a0, a2, 2f
+1:
+    lb a3, (a1)
+    sb a3, (a0)
+    addi a0, a0, 1
+    addi a1, a1, 1
+    bne a0, a2, 1b
+2:
+    ret
+endfunc memcpy
 
 func _do_next
     addi s_ip, s_ip, NATIVE
@@ -421,9 +414,10 @@ constword _f_of_runconst, "=_runconst", _code_runconst
 constword _f_of_bootstrap_script, "=bootstrap_script", bootstrap_script
 constword _f_of_bootstrap_script_end, "=bootstrap_script_end", bootstrap_script_end
 
-constword _f_of_dstack, "=_dstack_start", data_stack
-constword _f_of_rstack, "=_rstack_start", return_stack
-constword _f_of_allot_space, "=_allot_space", allot_space
+// Filled at init time
+constword _f_of_dstack, "=_dstack_start", 0
+constword _f_of_rstack, "=_rstack_start", 0
+constword _f_of_allot_space, "=_allot_space", 0
 
 varword _f_of_here, "=here", here_pointer
 varword _f_of_last, "=last", last_word
@@ -1403,31 +1397,35 @@ bootstrap_script:
     .incbin "bootstrap.five"
     .size bootstrap_script, . - bootstrap_script
 bootstrap_script_end:
-
     .section .text
 
-    .global main
-func main
-    la a0, _last_word
-    sn a0, last_word, a1
-    la a0, allot_space
-    sn a0, here_pointer, a1
+    // [[noreturn]] void fiveth_main(
+    //     void *data_stack,
+    //     void *return_stack,
+    //     void *allot_space
+    // );
+    .global fiveth_main
+func fiveth_main
+    la t1, _f_of_dstack
+    sn a0, o_payload(t1)
+    la t1, _f_of_rstack
+    sn a1, o_payload(t1)
+    la t1, _f_of_allot_space
+    sn a2, o_payload(t1)
 
-    la s_dsp, data_stack
-    la s_rsp, return_stack
+    la t0, _last_word
+    la t1, last_word
+    sn t0, (t1)
+
+    la t1, here_pointer
+    sn a2, (t1)
+
+    mv s_dsp, a0
+    mv s_rsp, a1
     mv s_rfp, s_rsp
     la s_ip, _f_init
     addi s_ip, s_ip, o_payload
     tail _do_go
-endfunc main
-
-    .section .bss
-    .p2align LGNATIVE
-data_stack:
-    .zero 4096
-return_stack:
-    .zero 4096
-allot_space:
-    .zero 4096 * 4
+endfunc fiveth_main
 
     .section .note.GNU-stack, "", @progbits

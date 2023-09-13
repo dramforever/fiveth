@@ -88,5 +88,8 @@ tuck 2 +n !
     "]" s. nl
 ] define
 
-1 2 3 4 _dump _dump pdrop pdrop
-"Hello, world!" s. nl
+[
+    sys_getchar
+    dup 1 neg =
+    [ drop 0 ] [ sys_putchar 1 ] ifelse
+] repeat
