@@ -365,6 +365,41 @@ codeword _f_mul_10, "*10"
     tail _do_next
 endcode _f_mul_10
 
+    // https://web.archive.org/web/20180517023231/http://www.hackersdelight.org/divcMore.pdf
+
+codeword _f_div_u_10, "/u10"
+    ln a0, (-1 * NATIVE)(s_dsp)
+    srli a1, a0, 1
+    srli a2, a0, 2
+    add a1, a1, a2
+    srli a2, a1, 4
+    add a1, a1, a2
+    srli a2, a1, 8
+    add a1, a1, a2
+    srli a2, a1, 16
+    add a1, a1, a2
+#if __riscv_xlen == 64
+    srli a2, a1, 32
+    add a1, a1, a2
+#endif
+    srli a1, a1, 3
+
+    // a2 = a1 * 10
+    slli a2, a1, 1
+    slli a3, a1, 3
+    add a2, a2, a3
+    // a2 = a0 - a1 * 10
+    sub a2, a0, a2
+
+    // offset = a2 > 9 = ! (a2 < 10)
+    sltiu a2, a2, 10
+    xori a2, a2, 1
+
+    add a1, a1, a2
+    sn a1, (-1 * NATIVE)(s_dsp)
+    tail _do_next
+endcode _f_div_u_10
+
 codeword _f_memcpy, "memcpy"
     addi s_dsp, s_dsp, -3 * NATIVE
     ln a0, (0 * NATIVE)(s_dsp)
