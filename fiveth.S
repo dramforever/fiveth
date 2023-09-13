@@ -257,6 +257,18 @@ codeword _f_lalign, "lalign"
     tail _do_next
 endcode _f_lalign
 
+codeword _f_lbase, "lbase"
+    sn s_rfp, (s_dsp)
+    addi s_dsp, s_dsp, 1 * NATIVE
+    tail _do_next
+endcode _f_lbase
+
+codeword _f_dhere, "dhere"
+    sn s_dsp, (s_dsp)
+    addi s_dsp, s_dsp, 1 * NATIVE
+    tail _do_next
+endcode _f_dhere
+
     // Control flow primitives
 
 codeword _f_jump, "_jump"
@@ -329,6 +341,7 @@ endcode \label
     // alu2word _f_div, "/", div
     alu2word _f_shl, "<<", sll
     alu2word _f_shr, ">>", sra
+    alu2word _f_shr_u, ">>u", srl
     alu2word _f_and, "&", and
     alu2word _f_or, "|", or
     alu2word _f_xor, "^", xor
@@ -398,22 +411,6 @@ codeword _f_sys_getchar, "sys_getchar"
     tail _do_next
 endcode _f_sys_getchar
 
-codeword _f_dump, "_dump"
-    la a0, data_stack
-    sub a1, s_dsp, a0
-    srli a1, a1, LGNATIVE
-    call _dump_array
-    tail _do_next
-endcode _f_dump
-
-codeword _f_dump_array, "_dump_array"
-    addi s_dsp, s_dsp, -2 * NATIVE
-    ln a0, (0 * NATIVE)(s_dsp)
-    ln a1, (1 * NATIVE)(s_dsp)
-    call _dump_array
-    tail _do_next
-endcode _f_dump_array
-
 constword _f_native, "native", NATIVE
 constword _f_lgnative, "lgnative", LGNATIVE
 
@@ -423,6 +420,10 @@ constword _f_of_runconst, "=_runconst", _code_runconst
 
 constword _f_of_bootstrap_script, "=bootstrap_script", bootstrap_script
 constword _f_of_bootstrap_script_end, "=bootstrap_script_end", bootstrap_script_end
+
+constword _f_of_dstack, "=_dstack_start", data_stack
+constword _f_of_rstack, "=_rstack_start", return_stack
+constword _f_of_allot_space, "=_allot_space", allot_space
 
 varword _f_of_here, "=here", here_pointer
 varword _f_of_last, "=last", last_word

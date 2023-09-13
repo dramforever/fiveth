@@ -58,5 +58,35 @@ tuck 2 +n !
     nl
 ] define
 
-hello
-"Currently defined words: " s. words
+"hex_digit" [ ; ( num -- char )
+    dup 10 < [ 48 ] [ 87 ] ifelse +
+] define
+
+"tohex" [ ; ( p:buf num -- n:buf )
+    pdup
+    [ swap 1 + swap 4 >>u dup ] repeat drop
+    ; ( p:buf num p:end )
+    swap nrot ; ( num p:buf p:end )
+    tuck swap - nrot ; ( n:buf num p:end )
+    [ 1 -  over 15 & hex_digit over b! swap 4 >>u swap over ] repeat
+    pdrop
+] define
+
+".h" [
+    lhere 32 lallot
+    "0x" s.
+    dup rot tohex s.
+    32 sys_putchar
+] define
+
+"_dump" [
+    dhere =_dstack_start swap
+    "[ " s.
+    over - lgnative >>u
+    [ over swap +n @ .h ] count
+    drop
+    "]" s. nl
+] define
+
+1 2 3 4 _dump _dump pdrop pdrop
+"Hello, world!" s. nl
