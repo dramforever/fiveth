@@ -32,7 +32,7 @@
 #define ALIGN(offset) (((offset) + 0xf) & ~0xf)
 
     .macro func name
-        .p2align 1
+        .p2align 2
         .type \name, @function
 \name:
     .endm
