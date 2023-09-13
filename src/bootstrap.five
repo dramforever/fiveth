@@ -43,6 +43,79 @@ tuck 2 +n !
     "Hello, world!" s. nl
 ] define
 
+"hex_digit" [ ; ( num -- char )
+    dup 10 < [ 48 ] [ 87 ] ifelse +
+] define
+
+"tohex" [ ; ( p:buf num -- n:buf )
+    tuck [ 4 >>u swap 1 + swap dup ] repeat drop
+    ; ( num p:end )
+    dup nrot ; ( p:end num p:end )
+    [
+        1 -
+        pdup swap 15 & hex_digit swap b!
+        swap 4 >> swap
+        over
+    ] repeat
+    nip -
+] define
+
+"%u10" [ ; ( a -- a%10 )
+    dup /u10 *10 -
+] define
+
+"todec_u" [ ; ( p:buf num -- n:buf )
+    tuck [ /u10 swap 1 + swap dup ] repeat drop
+    ; ( num p:end )
+    dup nrot ; ( p:end num p:end )
+    [
+        1 -
+        pdup swap %u10 48 + swap b!
+        swap /u10 swap
+        over
+    ] repeat
+    nip -
+] define
+
+"todec" [
+    dup <0
+    [
+        over 45 swap b!
+        swap 1 + swap
+        neg todec_u
+        1 +
+    ] [
+        todec_u
+    ] ifelse
+] define
+
+"." [
+    lhere 32 lallot
+    dup rot todec s.
+    32 sys_putchar
+] define
+
+".h" [
+    lhere 32 lallot
+    "0x" s.
+    dup rot tohex s.
+    32 sys_putchar
+] define
+
+"var" [ ; ( p:name n:name n:payload -- )
+    =_runconst swap 5 +n rawdef
+    dup 5 +n swap 4 +n !
+] define
+
+"_dump" [
+    dhere =_dstack_start swap
+    "[ " s.
+    over - lgnative >>u
+    [ over swap +n @ .h ] count
+    drop
+    "]" s. nl
+] define
+
 "words" [
     =last @
     [
@@ -58,36 +131,6 @@ tuck 2 +n !
     nl
 ] define
 
-"hex_digit" [ ; ( num -- char )
-    dup 10 < [ 48 ] [ 87 ] ifelse +
-] define
-
-"tohex" [ ; ( p:buf num -- n:buf )
-    pdup
-    [ swap 1 + swap 4 >>u dup ] repeat drop
-    ; ( p:buf num p:end )
-    swap nrot ; ( num p:buf p:end )
-    tuck swap - nrot ; ( n:buf num p:end )
-    [ 1 -  over 15 & hex_digit over b! swap 4 >>u swap over ] repeat
-    pdrop
-] define
-
-".h" [
-    lhere 32 lallot
-    "0x" s.
-    dup rot tohex s.
-    32 sys_putchar
-] define
-
-"_dump" [
-    dhere =_dstack_start swap
-    "[ " s.
-    over - lgnative >>u
-    [ over swap +n @ .h ] count
-    drop
-    "]" s. nl
-] define
-
 "cat_program" [
     [
         sys_getchar
@@ -96,4 +139,40 @@ tuck 2 +n !
     ] repeat
 ] define
 
-words
+"TOTAL" [ 1000 ] define  ; Upper limit (exclusive)
+"=comps" TOTAL var  ; Flags, mark 1 if not prime
+
+"mark-comp" [ =comps +  1 swap b! ] define
+0 mark-comp  1 mark-comp  ; 0 and 1 are not prime
+
+"max" [ ; ( a b -- n ) larger of a and b
+    pdup > [ drop ] [ nip ] ifelse
+] define
+
+".pad" [ ; ( num width -- )
+    swap
+    lhere 32 lallot
+    dup rot todec
+    rot over - 0 max [ drop 32 sys_putchar ] count
+    s.
+] define
+
+"sieve-multiples" [ ; ( n -- ) Mark 2*n, 3*n etc as composite
+    dup
+    over +
+    [
+        dup =comps + 1 swap b!
+        over +
+        dup TOTAL <
+    ] repeat
+    pdrop
+] define
+
+
+TOTAL 1 >> [ dup 2 >= [ sieve-multiples ] [ drop ] ifelse ] count
+
+"prime?" [ =comps + b@ =0 ] define
+TOTAL [ dup prime? [ 8 .pad ] [ drop ] ifelse ] count ; Print primes found
+
+0 TOTAL [ prime? [ 1 + ] if ] count ; Count of primes found
+nl . "primes found below " s. TOTAL . nl

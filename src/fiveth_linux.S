@@ -60,6 +60,6 @@ data_stack:
 return_stack:
     .zero 4096
 allot_space:
-    .zero 4096 * 4
+    .zero 4096 * 1024
 
     .section .note.GNU-stack, "", @progbits
