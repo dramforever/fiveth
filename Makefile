@@ -38,6 +38,8 @@ $(outdir)/%.o: src/%.S | $(outdir)
 $(outdir)/$(program): $(addprefix $(outdir)/,$(objs)) | $(outdir)
 	$(LD) $(LDFLAGS) -o $@ $^
 
+$(outdir)/fiveth.o: src/bootstrap.five
+
 .PHONY: clean
 clean:
 	rm -rf $(outdir)/
