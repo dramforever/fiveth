@@ -47,4 +47,8 @@
 #define o_namelen (3 * NATIVE)
 #define o_payload (4 * NATIVE)
 
+#ifndef START_ADDR
+#define START_ADDR 0
+#endif
+
 #endif /* _FIVETH_DEFS_H */
