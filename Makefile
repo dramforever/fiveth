@@ -77,4 +77,10 @@ qemu:
 	@-qemu-riscv$(XLEN) $(outdir)/$(program)
 	@-stty sane
 
+.PHONY: run
+run:
+	@-stty raw -echo
+	@-$(outdir)/$(program)
+	@-stty sane
+
 -include $(wildcard $(outdir)/*.d)

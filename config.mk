@@ -9,7 +9,7 @@ outdir = build
 PLATFORM = linux
 
 # App script to run at startup
-APP = primes
+APP = shell
 
 # 64-bit or 32-bit system?
 XLEN = 64
