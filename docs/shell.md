@@ -55,7 +55,7 @@ When the shell finishes processing a section of the input, either normally or
 abnormally, it will write an output comment starting with `"  ; "` (two spaces,
 a semicolon, one space).
 
-- If a line has been cancelled, the comment is `  ; ///`, indicating that the
+- If a line has been cancelled, the comment is `"  ; ///"`, indicating that the
   line was not executed
 
   ```
@@ -63,8 +63,8 @@ a semicolon, one space).
   0 >
   ```
 
-- If a line has a parse error, the comment is `  ; ???`. Error messages comes in
-  the next few lines.
+- If a line has a parse error, the comment is `"  ; ???"`. Error messages comes
+  in the next few lines.
 
   ```
   0 > 10 [ nonexistent ] count  ; ???
@@ -73,7 +73,7 @@ a semicolon, one space).
   0 >
   ```
 
-- If a line is executed, the comment is `  ; `, then output of the code
+- If a line is executed, the comment is `"  ; "`, then output of the code
 
   ```
   0 > 1 2 + .  ; 3
