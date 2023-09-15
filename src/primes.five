@@ -1,3 +1,29 @@
+"?newline" [
+    dup 10 = swap 13 = |
+] define
+
+"echo_char" [
+    dup ?newline
+    [ drop 10 b. ] [ b. ] ifelse
+] define
+
+"getline" [ ; ( p:buf -- n:line )
+    dup
+    [
+        getchar
+        dup 1 neg =
+        [
+            drop 0
+        ] [
+            pdup swap b!
+            swap 1 + swap
+            dup echo_char
+            ?newline =0
+        ] ifelse
+    ] repeat
+    swap -
+] define
+
 "=line_buf" 1024 var
 
 "Primes up to? " s.

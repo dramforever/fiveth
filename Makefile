@@ -73,6 +73,8 @@ clean:
 
 .PHONY: qemu
 qemu:
-	qemu-riscv$(XLEN) $(outdir)/$(program)
+	@-stty raw -echo
+	@-qemu-riscv$(XLEN) $(outdir)/$(program)
+	@-stty sane
 
 -include $(wildcard $(outdir)/*.d)
