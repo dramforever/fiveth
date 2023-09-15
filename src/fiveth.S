@@ -220,7 +220,7 @@ codeword _f_return, "return"
     tail _do_go
 endcode _f_return
 
-codeword _f_lit, "_lit"
+codeword _f_lit, "__lit"
     ln a0, (1 * NATIVE)(s_ip)
     sn a0, (s_dsp)
     addi s_dsp, s_dsp, NATIVE
@@ -228,7 +228,7 @@ codeword _f_lit, "_lit"
     tail _do_go
 endcode _f_lit
 
-codeword _f_litstr, "_litstr"
+codeword _f_litstr, "__litstr"
     ln a1, (1 * NATIVE)(s_ip)
     addi a0, s_ip, 2 * NATIVE
     sn a0, (0 * NATIVE)(s_dsp)
@@ -240,7 +240,7 @@ codeword _f_litstr, "_litstr"
     tail _do_go
 endcode _f_litstr
 
-codeword _f_litlist, "_litlist"
+codeword _f_litlist, "__litlist"
     ln a1, (1 * NATIVE)(s_ip)
     addi a0, s_ip, 2 * NATIVE
     sn a0, (s_dsp)
@@ -1132,6 +1132,34 @@ defword _f_process_word, "_process_word"
     list 1f
         nbyte _f_pdrop
         nbyte _f_lit, 1
+        nbyte _f_return
+    1:
+    nbyte _f_case
+
+    list 1f
+        // Quoted word
+        nbyte _f_over, _f_b_load_u, _f_lit, '`', _f_eq
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_pdup, _f_swap, _f_lit, 1, _f_add, _f_swap, _f_lit, 1, _f_sub
+        nbyte _f_find_word
+        // ( p:fill p:tokens p:word n:word p:def )
+        nbyte _f_dup, _f_lit, -1, _f_eq
+        list 2f
+            nbyte _f_drop, _f_pdrop, _f_pdrop
+            str "Undefined quoted word"
+            nbyte _f_lit, 0
+            nbyte _f_return
+        2:
+        list 2f
+            nbyte _f_nrot, _f_pdrop
+            nbyte _f_nrot, _f_lit, _f_lit, _f_append_token
+            nbyte _f_rot, _f_append_token
+            nbyte _f_lit, 1
+            nbyte _f_return
+        2:
+        nbyte _f_ifelse
         nbyte _f_return
     1:
     nbyte _f_case
