@@ -117,6 +117,12 @@ endfunc _code_\label
         _newword \label, "\name", _code_rundef
     .endm
 
+    .macro defword_ind label, name
+        _newword \label, "\name", _code_runindirect
+        nbyte 1f
+1:
+    .endm
+
     .macro enddef label
         .size \label, . - \label
     .endm
@@ -156,6 +162,22 @@ codeword _f_bkpt, "bkpt", -1
     ebreak
     tail _do_next
 endcode _f_bkpt
+
+codeword _f_syscall, "syscall"
+    ln a0, (-8 * NATIVE)(s_dsp)
+    ln a1, (-7 * NATIVE)(s_dsp)
+    ln a2, (-6 * NATIVE)(s_dsp)
+    ln a3, (-5 * NATIVE)(s_dsp)
+    ln a4, (-4 * NATIVE)(s_dsp)
+    ln a5, (-3 * NATIVE)(s_dsp)
+    ln a6, (-2 * NATIVE)(s_dsp)
+    ln a7, (-1 * NATIVE)(s_dsp)
+    addi s_dsp, s_dsp, -6 * NATIVE
+    ecall
+    sn a0, (-2 * NATIVE)(s_dsp)
+    sn a1, (-1 * NATIVE)(s_dsp)
+    tail _do_next
+endcode _f_syscall
 
 codeword _f_return, "return"
     addi s_rsp, s_rfp, -2 * NATIVE
@@ -419,26 +441,6 @@ codeword _f_memcmp, "memcmp"
     tail _do_next
 endcode _f_memcmp
 
-codeword _f_sys_exit, "sys_exit"
-    li a0, 0
-    call exit
-    unimp
-endcode _f_sys_exit
-
-codeword _f_sys_putchar, "sys_putchar"
-    addi s_dsp, s_dsp, -1 * NATIVE
-    lbu a0, (s_dsp)
-    call putchar
-    tail _do_next
-endcode _f_sys_putchar
-
-codeword _f_sys_getchar, "sys_getchar"
-    call getchar
-    sn a0, (s_dsp)
-    addi s_dsp, s_dsp, 1 * NATIVE
-    tail _do_next
-endcode _f_sys_getchar
-
 constword _f_native, "native", NATIVE
 constword _f_lgnative, "lgnative", LGNATIVE
 
@@ -456,6 +458,19 @@ constword _f_of_allot_space, "=_allot_space", 0
 
 varword _f_of_here, "=here", here_pointer
 varword _f_of_last, "=last", last_word
+
+defword_ind _f_sys_exit, "sys_exit"
+    list 1f
+    nbyte _f_bkpt
+    nbyte _f_lit, 1
+1:
+    nbyte _f_repeat
+enddef _f_sys_exit
+
+defword_ind _f_b_dot, "b."
+    nbyte _f_drop
+    nbyte _f_return
+enddef _f_b_dot
 
 defword _f_dup, "dup"
     // ( a -- a a )
@@ -739,7 +754,7 @@ enddef _f_end_case
 defword _f_s_dot, "s."
     list 1f
         nbyte _f_drop
-        nbyte _f_dup, _f_b_load_u, _f_sys_putchar
+        nbyte _f_dup, _f_b_load_u, _f_b_dot
         nbyte _f_lit, 1, _f_add
         nbyte _f_return
     1:
@@ -1402,7 +1417,7 @@ defword _f_evaluate, "evaluate"
                 // ( p:buf n:buf p:line n:line p:word n:word p:msg n:msg )
                 // Print error and quit evaluating
                 nbyte _f_s_dot
-                nbyte _f_lit, '\n', _f_sys_putchar
+                nbyte _f_lit, '\n', _f_b_dot
                 nbyte _f_print_error_line
                 nbyte _f_lit, 0
                 nbyte _f_return
