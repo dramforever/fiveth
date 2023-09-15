@@ -1,0 +1,18 @@
+"UART0_BASE" [ 268435456 ] define ; 0x10000000
+
+"uart_lsr" [ UART0_BASE 20 + w@ ] define
+
+"uart_putchar" [
+    [ uart_lsr 32 & =0 ] repeat
+    255 & UART0_BASE w!
+] define
+
+[
+    ; Add CR before LF
+    dup 10 = [ 13 uart_putchar ] if
+    uart_putchar
+] "b." setind
+
+[ uart_lsr 1 & ] "getchar_ready" setind
+
+[ UART0_BASE w@ ] "getchar_try" setind

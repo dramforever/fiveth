@@ -5,5 +5,12 @@
 ] "b." setind
 
 [
+    lhere native lallot
+    dup
+    1 swap 1 0 0 0 0 63 syscall drop
+    1 < [ 1 neg nip ] [ b@ ] ifelse
+] "getchar_try" setind
+
+[
     0 0 0 0 0 0 0 93 syscall bkpt
 ] "sys_exit" setind
