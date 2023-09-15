@@ -21,10 +21,9 @@ SECTIONS {
     .got : { *(.got) } :data
     .data : { *(.data .data.*) }
 
-    .sbss : {
-        __global_pointer$ = .;
-        *(.sbss .sbss.*)
-    }
+    __global_pointer$ = .;
+
+    .sbss : { *(.sbss .sbss.*) }
     .bss : { *(.bss .bss.*) }
 
     /DISCARD/ : {
