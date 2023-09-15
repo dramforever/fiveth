@@ -1,0 +1,38 @@
+
+"TOTAL" [ 1000 ] define  ; Upper limit (exclusive)
+"=comps" TOTAL var  ; Flags, mark 1 if not prime
+
+"mark-comp" [ =comps +  1 swap b! ] define
+0 mark-comp  1 mark-comp  ; 0 and 1 are not prime
+
+"max" [ ; ( a b -- n ) larger of a and b
+    pdup > [ drop ] [ nip ] ifelse
+] define
+
+".pad" [ ; ( num width -- )
+    swap
+    lhere 32 lallot
+    dup rot todec
+    rot over - 0 max [ drop 32 b. ] count
+    s.
+] define
+
+"sieve-multiples" [ ; ( n -- ) Mark 2*n, 3*n etc as composite
+    dup
+    over +
+    [
+        dup =comps + 1 swap b!
+        over +
+        dup TOTAL <
+    ] repeat
+    pdrop
+] define
+
+
+TOTAL 1 >> [ dup 2 >= [ sieve-multiples ] [ drop ] ifelse ] count
+
+"prime?" [ =comps + b@ =0 ] define
+TOTAL [ dup prime? [ 8 .pad ] [ drop ] ifelse ] count ; Print primes found
+
+0 TOTAL [ prime? [ 1 + ] if ] count ; Count of primes found
+nl . "primes found below " s. TOTAL . nl

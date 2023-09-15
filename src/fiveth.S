@@ -2,6 +2,40 @@
 
     .section .text
 
+    // [[noreturn]] void fiveth_main(
+    //     void *data_stack,
+    //     void *return_stack,
+    //     void *allot_space
+    // );
+    .global fiveth_main
+func fiveth_main
+    la t1, _f_of_dstack
+    sn a0, o_payload(t1)
+    la t1, _f_of_rstack
+    sn a1, o_payload(t1)
+    la t1, _f_of_allot_space
+    sn a2, o_payload(t1)
+
+    la t0, _last_word
+    la t1, last_word
+    sn t0, (t1)
+
+    la t1, here_pointer
+    sn a2, (t1)
+
+    mv s_dsp, a0
+    mv s_rsp, a1
+    mv s_rfp, s_rsp
+    la s_ip, _f_init
+    addi s_ip, s_ip, o_payload
+    tail _do_go
+endfunc fiveth_main
+
+    .weak _do_relocate
+func _do_relocate
+    ret
+endfunc _do_relocate
+
     // void memcmp(const char *a, const char *b, size_t len)
     .global memcmp
 func memcmp
@@ -448,8 +482,8 @@ constword _f_of_rundef, "=_rundef", _code_rundef
 constword _f_of_runindirect, "=_runindirect", _code_runindirect
 constword _f_of_runconst, "=_runconst", _code_runconst
 
-constword _f_of_bootstrap_script, "=bootstrap_script", bootstrap_script
-constword _f_of_bootstrap_script_end, "=bootstrap_script_end", bootstrap_script_end
+constword _f_of_script, "=_script", _script
+constword _f_of_script_end, "=_script_end", _script_end
 
 // Filled at init time
 constword _f_of_dstack, "=_dstack_start", 0
@@ -1433,49 +1467,12 @@ defword _f_evaluate, "evaluate"
 enddef _f_evaluate
 
 defword _f_init, "_init"
-    nbyte _f_of_bootstrap_script, _f_of_bootstrap_script_end
+    nbyte _f_of_script, _f_of_script_end
     nbyte _f_over, _f_sub
     nbyte _f_evaluate
     nbyte _f_sys_exit
 enddef _f_init
 
     .set _last_word, 1001b
-
-    .section .rodata
-    .type bootstrap_script, @object
-bootstrap_script:
-    .incbin "bootstrap.five"
-    .size bootstrap_script, . - bootstrap_script
-bootstrap_script_end:
-    .section .text
-
-    // [[noreturn]] void fiveth_main(
-    //     void *data_stack,
-    //     void *return_stack,
-    //     void *allot_space
-    // );
-    .global fiveth_main
-func fiveth_main
-    la t1, _f_of_dstack
-    sn a0, o_payload(t1)
-    la t1, _f_of_rstack
-    sn a1, o_payload(t1)
-    la t1, _f_of_allot_space
-    sn a2, o_payload(t1)
-
-    la t0, _last_word
-    la t1, last_word
-    sn t0, (t1)
-
-    la t1, here_pointer
-    sn a2, (t1)
-
-    mv s_dsp, a0
-    mv s_rsp, a1
-    mv s_rfp, s_rsp
-    la s_ip, _f_init
-    addi s_ip, s_ip, o_payload
-    tail _do_go
-endfunc fiveth_main
 
     .section .note.GNU-stack, "", @progbits

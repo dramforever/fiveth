@@ -17,13 +17,6 @@ func _start
     tail fiveth_main
 endfunc _start
 
-    .section .text
-
-    .weak _do_relocate
-func _do_relocate
-    ret
-endfunc _do_relocate
-
     .section .bss
     .p2align LGNATIVE
 data_stack:

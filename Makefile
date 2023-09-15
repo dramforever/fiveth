@@ -18,11 +18,12 @@ else
   RVC_LETTER =
 endif
 
-asflags-y += -nostdinc -I src -march=rv$(XLEN)i$(RVC_LETTER) -mabi=$(ABI)
+asflags-y += -nostdinc -I src -I $(outdir)
+asflags-y += -march=rv$(XLEN)i$(RVC_LETTER) -mabi=$(ABI)
 ldflags-y += -nostdlib --no-dynamic-linker -m elf$(XLEN)lriscv
 
 ldflags-$(PIE) += -pie
-ldflags-$(FLAT_BINARY) += -T src/link.lds
+lds-$(FLAT_BINARY) += src/link.lds
 
 ifeq ($(FLAT_BINARY),y)
   ifneq ($(START_ADDR),)
@@ -34,9 +35,14 @@ endif
 asflags-y += $(ASFLAGS)
 ldflags-y += $(LDFLAGS)
 
+# This must be the last ldflags
+ldflags-$(FLAT_BINARY) += -T
+
 program = fiveth
-objs-y += fiveth_linux.o fiveth.o
+objs-y += init_linux.o fiveth.o script.o
 objs-$(PIE) += relocate.o
+
+scripts-y += bootstrap.five drivers_linux.five app.five
 
 targets-y += $(outdir)/$(program)
 targets-$(FLAT_BINARY) += $(outdir)/$(program).bin
@@ -50,15 +56,18 @@ $(outdir):
 	mkdir -p $@
 
 $(outdir)/%.o: src/%.S | $(outdir)
-	$(AS) $(asflags-y) -MMD -c -o $@ $<
+	$(AS) -MMD -c -o $@ $(asflags-y) $<
 
-$(outdir)/$(program): $(addprefix $(outdir)/,$(objs-y)) | src/link.lds $(outdir)
-	$(LD) $(ldflags-y) -o $@ $^
+$(outdir)/$(program): $(lds-y) $(addprefix $(outdir)/,$(objs-y)) | $(outdir)
+	$(LD) -o $@ $(ldflags-y) $^
 
 %.bin: %
 	$(OBJCOPY) -O binary $< $@
 
-$(outdir)/fiveth.o: src/bootstrap.five
+$(outdir)/script.o: $(outdir)/_full_script.five
+
+$(outdir)/_full_script.five: $(addprefix src/,$(scripts-y))
+	cat $^ > $@
 
 .PHONY: clean
 clean:
