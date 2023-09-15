@@ -39,10 +39,8 @@ ldflags-y += $(LDFLAGS)
 ldflags-$(FLAT_BINARY) += -T
 
 program = fiveth
-objs-y += init_linux.o fiveth.o script.o
+objs-y += $(INIT_OBJ) fiveth.o script.o
 objs-$(PIE) += relocate.o
-
-scripts-y += bootstrap.five drivers_linux.five app.five
 
 targets-y += $(outdir)/$(program)
 targets-$(FLAT_BINARY) += $(outdir)/$(program).bin
@@ -66,7 +64,7 @@ $(outdir)/$(program): $(lds-y) $(addprefix $(outdir)/,$(objs-y)) | $(outdir)
 
 $(outdir)/script.o: $(outdir)/_full_script.five
 
-$(outdir)/_full_script.five: $(addprefix src/,$(scripts-y))
+$(outdir)/_full_script.five: $(addprefix src/,$(SCRIPTS))
 	cat $^ > $@
 
 .PHONY: clean

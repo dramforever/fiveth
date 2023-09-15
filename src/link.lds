@@ -26,6 +26,8 @@ SECTIONS {
     .sbss : { *(.sbss .sbss.*) }
     .bss : { *(.bss .bss.*) }
 
+    _end = .;
+
     /DISCARD/ : {
         *(.dynsym .dynstr .hash .gnu.hash)
     }

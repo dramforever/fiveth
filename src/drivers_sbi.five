@@ -1,0 +1,7 @@
+[
+    0 0 0 0 0 0 1 syscall drop drop
+] "b." setind
+
+[
+    0 0 0 0 0 0 0 8 syscall bkpt
+] "sys_exit" setind

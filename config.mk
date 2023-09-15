@@ -5,6 +5,9 @@ outdir = build
 
 ### Target information
 
+# Platform?
+PLATFORM = linux
+
 # 64-bit or 32-bit system?
 XLEN = 64
 
@@ -23,6 +26,14 @@ PIE = n
 # Start Address of flat binary
 START_ADDR =
 # (Depends on FLAT_BINARY=y)
+
+### Build details
+
+# Platform-specific initialization code
+INIT_OBJ = init_$(PLATFORM).o
+
+# Scripts to run at boot
+SCRIPTS = bootstrap.five drivers_$(PLATFORM).five app.five
 
 ### Toolchain
 

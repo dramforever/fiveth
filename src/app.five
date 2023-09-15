@@ -2,6 +2,8 @@
 "TOTAL" [ 1000 ] define  ; Upper limit (exclusive)
 "=comps" TOTAL var  ; Flags, mark 1 if not prime
 
+TOTAL [ =comps + 0 swap b! ] count ; Initialize to 0
+
 "mark-comp" [ =comps +  1 swap b! ] define
 0 mark-comp  1 mark-comp  ; 0 and 1 are not prime
 
