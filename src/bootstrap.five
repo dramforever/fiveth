@@ -117,7 +117,7 @@ tuck 2 +n !
     over - lgnative >>u
     [ over swap +n @ .h ] count
     drop
-    "]" s. nl
+    "]" s.
 ] define
 
 "words" [
@@ -132,7 +132,6 @@ tuck 2 +n !
             1
         ] ifelse
     ] repeat
-    nl
 ] define
 
 ; Overridable definition
@@ -144,4 +143,15 @@ tuck 2 +n !
 "getchar" [
     [ getchar_ready =0 ] repeat
     getchar_try
+] define
+
+"while" [ ; ( l:cond l:body -- )
+    [
+        l, l,
+        1 l@ run
+        0 l@ swap
+        [ run 1 ] [ drop 0 ] ifelse
+        1 l@ 0 l@ rot
+    ] repeat
+    pdrop
 ] define
