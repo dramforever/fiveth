@@ -8,6 +8,9 @@ outdir = build
 # Platform?
 PLATFORM = linux
 
+# App script to run at startup
+APP = primes
+
 # 64-bit or 32-bit system?
 XLEN = 64
 
@@ -33,7 +36,7 @@ START_ADDR =
 INIT_OBJ = init_$(PLATFORM).o
 
 # Scripts to run at boot
-SCRIPTS = bootstrap.five drivers_$(PLATFORM).five app.five
+SCRIPTS = bootstrap.five drivers_$(PLATFORM).five $(APP).five
 
 ### Toolchain
 

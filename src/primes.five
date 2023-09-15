@@ -1,5 +1,15 @@
+"=line_buf" 1024 var
 
-"TOTAL" [ 1000 ] define  ; Upper limit (exclusive)
+"Primes up to? " s.
+
+=line_buf dup getline
+1 - parse_decimal drop
+
+"=TOTAL" native var ; Primes up to
+
+=TOTAL !
+
+"TOTAL" [ =TOTAL @ ] define
 "=comps" TOTAL var  ; Flags, mark 1 if not prime
 
 TOTAL [ =comps + 0 swap b! ] count ; Initialize to 0
