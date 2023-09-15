@@ -1,0 +1,82 @@
+"=line" 1024 var
+"=lend" native var
+
+"reset_line" [ =line =lend ! ] define
+"the_line" [ =line =lend @ over - ] define
+reset_line
+
+"=llim" [ =line 1024 + ] define
+
+"insert" [
+    =lend @ =llim =
+    [ drop ] [ dup =lend @ b!  b.  1 =lend +! ] ifelse
+] define
+
+"backspace" [
+    =lend @ =line = =0
+    [
+        8 b. 32 b. 8 b.
+        1 neg =lend +!
+    ] if
+] define
+
+"?backspace" [ dup 8 = swap 127 = | ] define
+"?control" [ dup 0 31 between swap 127 = | ] define
+
+"do_char" [
+    dup 8 =
+    [ drop backspace ] [ dup ?control [ drop ] [ insert ] ifelse ] ifelse
+] define
+
+"getline" [
+    reset_line
+    [
+        getchar
+        begin_case
+        [ dup 4 = ] [ drop sys_exit ] case
+        [ dup 3 = ] [ drop 0 0 ] case
+        [ dup 13 = ] [ drop 1 0 ] case
+        [ dup ?backspace ] [ drop backspace 1 ] case
+        [ dup ?control =0 ] [ insert 1 ] case
+        [ 1 ] [ drop 1 ] case
+        end_case
+    ] repeat
+] define
+
+"shell" [
+    1 neg here
+    [
+        dhere =_dstack_start - lgnative >>u 2 - .
+        over 1 neg =
+        [ "> " ] [ "| " ] ifelse s.
+        getline
+        [
+            the_line process_line
+            [
+                dup here = =0
+                [
+                    over 1 neg =
+                    [
+                        nip
+                        dup `return swap !
+                        here swap  1 +n =here !
+                        "  ; " s.
+                        run
+                        1 neg here
+                    ] if
+                ] if
+                nl
+            ] [
+                "  ; ???" s. nl "! " s. s. nl
+                "! " s. the_line pswap print_error_line nl
+                1 neg here
+            ] ifelse
+        ] [
+            "  ; ///" s. nl
+            pdrop 1 neg here
+        ] ifelse
+        1
+    ] repeat
+] define
+
+shell
