@@ -58,7 +58,7 @@ tuck 2 +n !
     [
         1 -
         pdup swap 15 & hex_digit swap b!
-        swap 4 >> swap
+        swap 4 >>u swap
         over
     ] repeat
     nip -
@@ -107,7 +107,7 @@ tuck 2 +n !
 ] define
 
 "var" [ ; ( p:name n:name n:payload -- )
-    =_runconst swap 5 +n rawdef
+    =_runconst swap 1 +n rawdef
     dup 5 +n swap 4 +n !
 ] define
 
