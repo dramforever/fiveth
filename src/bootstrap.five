@@ -155,3 +155,33 @@ tuck 2 +n !
     ] repeat
     pdrop
 ] define
+
+"_showstep" [ ; ( depth current -- depth current )
+  dup @
+  begin_case
+    [ dup `__lit = ] [ drop 1 +n dup @ . 1 +n ] case
+    [ dup `__litlist = ] [ drop 2 +n "[ " s. swap 1 + swap ] case
+    [ dup `__litstr = ] [
+        drop dup 1 +n @ over 2 +n swap 34 b. s. 34 b. 32 b.
+        dup 1 +n @ + 2 +n aligned
+    ] case
+    [ dup `__return = ] [ drop 1 +n "] " s. swap 1 - swap ] case
+    [ 1 ] [ name_of_def s. " " s. 1 +n ] case
+  end_case
+] define
+
+"_showlist" [
+    1 swap
+    "[ " s.
+    [ _showstep over >0 ] repeat
+    pdrop
+] define
+
+"showdef" [
+    dup @
+    begin_case
+    [ dup =_rundef = ] [ drop 4 +n _showlist ] case
+    [ dup =_runindirect = ] [ drop 4 +n @ "(indirect) " s. _showlist ] case
+    [ 1 ] [ pdrop "(unknown)" s. ] case
+    end_case
+] define
