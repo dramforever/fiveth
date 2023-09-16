@@ -213,7 +213,7 @@ codeword _f_syscall, "syscall"
     tail _do_next
 endcode _f_syscall
 
-codeword _f_return, "return"
+codeword _f_return, "__return"
     addi s_rsp, s_rfp, -2 * NATIVE
     ln s_rfp, (0 * NATIVE)(s_rsp)
     ln s_ip, (1 * NATIVE)(s_rsp)

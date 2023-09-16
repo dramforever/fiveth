@@ -58,7 +58,7 @@ reset_line
                     over 1 neg =
                     [
                         nip
-                        dup `return swap !
+                        dup `__return swap !
                         here swap  1 +n =here !
                         "  ; " s.
                         run
