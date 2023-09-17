@@ -199,17 +199,6 @@ endfunc _code_\label
         .size \label, . - \label
     .endm
 
-    .macro varword label, name, var_label
-        constword \label, "\name", \var_label
-        .pushsection .sbss, "aw", @nobits
-        .p2align LGNATIVE
-        .type \var_label, @object
-\var_label:
-        .zero NATIVE
-        .size \var_label, . - \var_label
-        .popsection
-    .endm
-
     .macro str string
         nbyte _f_litstr, 1022f - 1021f
 1021:
