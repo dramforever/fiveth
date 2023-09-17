@@ -1,13 +1,13 @@
-[
-    dup 10 = [ 13 putchar_raw ] if
-    putchar_raw
-] set_putchar
-
 "putchar_raw" [
     lhere native lallot
     swap over b!
     1 swap 1 0 0 0 0 64 syscall drop drop
 ] define
+
+[
+    dup 10 = [ 13 putchar_raw ] if
+    putchar_raw
+] set_putchar
 
 "getchar" [
     lhere native lallot
