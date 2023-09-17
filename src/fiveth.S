@@ -235,6 +235,25 @@ codeword _f_of_base, "=_base"
     tail _do_next
 endcode _f_of_base
 
+    .macro counterword csr
+        codeword _f_rd\csr, "rd\csr"
+            csrr a0, \csr
+            sn a0, (s_dsp)
+            addi s_dsp, s_dsp, NATIVE
+            tail _do_next
+        endcode _f_rd\csr
+    .endm
+
+    counterword cycle
+    counterword time
+    counterword instret
+
+#if __riscv_xlen == 32
+    counterword cycleh
+    counterword timeh
+    counterword instreth
+#endif
+
 codeword _f_syscall, "syscall"
     ln a0, (-8 * NATIVE)(s_dsp)
     ln a1, (-7 * NATIVE)(s_dsp)

@@ -12,14 +12,21 @@ else
   $(error XLEN needs to be 32 or 64)
 endif
 
+isa := rv$(XLEN)i
+
 ifeq ($(RVC),y)
-  RVC_LETTER = c
-else
-  RVC_LETTER =
+  isa := $(isa)c
+endif
+
+# Assembler requires specifying Zicsr and Zifencei?
+AS_SPLIT_ZI = $(shell $(AS) -march=rv$(XLEN)g_zicsr_zifencei -c -o /dev/null -x c /dev/null >/dev/null 2>&1 && echo y || echo n)
+
+ifeq ($(AS_SPLIT_ZI),y)
+  isa := $(isa)_zicsr_zifencei
 endif
 
 asflags-y += -nostdinc -I src -I $(outdir)
-asflags-y += -march=rv$(XLEN)i$(RVC_LETTER) -mabi=$(ABI)
+asflags-y += -march=$(isa) -mabi=$(ABI)
 ldflags-y += -nostdlib --no-dynamic-linker -m elf$(XLEN)lriscv
 
 ldflags-$(PIE) += -pie
