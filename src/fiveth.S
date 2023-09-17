@@ -47,7 +47,7 @@ func fiveth_init_base
     sn a1, (global_here * NATIVE)(a0)
     lla a1, _last_word
     sn a1, (global_last * NATIVE)(a0)
-    li a1, -1
+    lla a1, _init_putchar
     sn a1, (global_putchar * NATIVE)(a0)
     ret
 endfunc fiveth_init_base
@@ -829,18 +829,15 @@ defword _f_end_case, "end_case"
     nbyte _f_return
 enddef _f_end_case
 
+    .type _init_putchar, @object
+_init_putchar:
+    nbyte _f_drop
+    nbyte _f_return
+    .size _init_putchar, . - _init_putchar
+
 defword _f_b_dot, "b."
     nbyte _f_of_putchar, _f_load
-    nbyte _f_dup, _f_not, _f_eqz
-    list 1f
-        nbyte _f_pdrop
-        nbyte _f_return
-    1:
-    list 1f
-        nbyte _f_run
-        nbyte _f_return
-    1:
-    nbyte _f_ifelse
+    nbyte _f_run
     nbyte _f_return
 enddef _f_b_dot
 
