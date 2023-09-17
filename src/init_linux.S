@@ -11,7 +11,7 @@ func _start
 
     call _do_relocate
 
-    addi sp, sp, - ALIGN(6 * NATIVE)
+    addi sp, sp, - ALIGN(info_size * NATIVE)
     mv a0, sp
     lla a1, init_word
     lla a2, data_stack

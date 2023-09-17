@@ -23,7 +23,7 @@ func _start
     add a3, a2, t0 // Return stack
     add s0, a3, t0 // Allot space
 
-    addi sp, sp, - ALIGN(6 * NATIVE)
+    addi sp, sp, - ALIGN(info_size * NATIVE)
     mv a0, sp
     lla a1, init_word
     call fiveth_init_info

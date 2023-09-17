@@ -12,10 +12,10 @@ func fiveth_run
     sn s2, (5 * NATIVE)(sp)
     sn s3, (6 * NATIVE)(sp)
 
-    ln s_dsp, info_dsp(a0)
-    ln s_ip, info_ip(a0)
-    ln s_rsp, info_rsp(a0)
-    ln s_rfp, info_rfp(a0)
+    ln s_dsp, (info_dsp * NATIVE)(a0)
+    ln s_ip, (info_ip * NATIVE)(a0)
+    ln s_rsp, (info_rsp * NATIVE)(a0)
+    ln s_rfp, (info_rfp * NATIVE)(a0)
 
     sn a0, (0 * NATIVE)(sp)
     sn a1, (1 * NATIVE)(sp)
@@ -26,10 +26,10 @@ endfunc fiveth_run
 func _fiveth_exit
     ln a0, (0 * NATIVE)(sp)
 
-    sn s_dsp, info_dsp(a0)
-    sn s_ip, info_ip(a0)
-    sn s_rsp, info_rsp(a0)
-    sn s_rfp, info_rfp(a0)
+    sn s_dsp, (info_dsp * NATIVE)(a0)
+    sn s_ip, (info_ip * NATIVE)(a0)
+    sn s_rsp, (info_rsp * NATIVE)(a0)
+    sn s_rfp, (info_rfp * NATIVE)(a0)
 
     ln ra, (2 * NATIVE)(sp)
     ln s0, (3 * NATIVE)(sp)
@@ -44,11 +44,11 @@ endfunc _fiveth_exit
     .global fiveth_init_base
 func fiveth_init_base
     addi a1, a0, 3 * NATIVE
-    sn a1, (0 * NATIVE)(a0)
+    sn a1, (global_here * NATIVE)(a0)
     lla a1, _last_word
-    sn a1, (1 * NATIVE)(a0)
+    sn a1, (global_last * NATIVE)(a0)
     li a1, -1
-    sn a1, (2 * NATIVE)(a0)
+    sn a1, (global_putchar * NATIVE)(a0)
     ret
 endfunc fiveth_init_base
 
@@ -60,12 +60,12 @@ endfunc fiveth_init_base
     // );
     .global fiveth_init_info
 func fiveth_init_info
-    sn a1, info_ip(a0)
-    sn a2, info_dsp(a0)
-    sn a2, info_ds_base(a0)
-    sn a3, info_rsp(a0)
-    sn a3, info_rfp(a0)
-    sn a3, info_rs_base(a0)
+    sn a1, (info_ip * NATIVE)(a0)
+    sn a2, (info_dsp * NATIVE)(a0)
+    sn a2, (info_ds_base * NATIVE)(a0)
+    sn a3, (info_rsp * NATIVE)(a0)
+    sn a3, (info_rfp * NATIVE)(a0)
+    sn a3, (info_rs_base * NATIVE)(a0)
     ret
 endfunc fiveth_init_info
 
@@ -699,17 +699,17 @@ defword _f_align, "align"
 enddef _f_align
 
 defword _f_of_here, "=here"
-    nbyte _f_of_base
+    nbyte _f_of_base, _f_lit, global_here, _f_add_n
     nbyte _f_return
 enddef _f_of_here
 
 defword _f_of_last, "=last"
-    nbyte _f_of_base, _f_lit, 1, _f_add_n
+    nbyte _f_of_base, _f_lit, global_last, _f_add_n
     nbyte _f_return
 enddef _f_of_last
 
 defword _f_of_putchar, "=_putchar"
-    nbyte _f_of_base, _f_lit, 2, _f_add_n
+    nbyte _f_of_base, _f_lit, global_putchar, _f_add_n
     nbyte _f_return
 enddef _f_of_putchar
 
@@ -719,7 +719,7 @@ defword _f_set_putchar, "set_putchar"
 enddef _f_set_putchar
 
 defword _f_of_dstack_start, "=_dstack_start"
-    nbyte _f_of_info, _f_lit, 4, _f_add_n, _f_load
+    nbyte _f_of_info, _f_lit, info_ds_base, _f_add_n, _f_load
     nbyte _f_return
 enddef _f_of_dstack_start
 
