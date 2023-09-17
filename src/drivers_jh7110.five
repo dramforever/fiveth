@@ -7,11 +7,11 @@
     255 & UART0_BASE w!
 ] define
 
-[
+"b." [
     ; Add CR before LF
     dup 10 = [ 13 uart_putchar ] if
     uart_putchar
-] set_putchar
+] define
 
 "getchar" [
     [ uart_lsr 1 & =0 ] repeat

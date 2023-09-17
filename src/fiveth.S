@@ -43,12 +43,10 @@ endfunc _fiveth_exit
     // void fiveth_init_base(void *base)
     .global fiveth_init_base
 func fiveth_init_base
-    addi a1, a0, 3 * NATIVE
+    addi a1, a0, global_size * NATIVE
     sn a1, (global_here * NATIVE)(a0)
     lla a1, _last_word
     sn a1, (global_last * NATIVE)(a0)
-    lla a1, _init_putchar
-    sn a1, (global_putchar * NATIVE)(a0)
     ret
 endfunc fiveth_init_base
 
@@ -708,16 +706,6 @@ defword _f_of_last, "=last"
     nbyte _f_return
 enddef _f_of_last
 
-defword _f_of_putchar, "=_putchar"
-    nbyte _f_of_base, _f_lit, global_putchar, _f_add_n
-    nbyte _f_return
-enddef _f_of_putchar
-
-defword _f_set_putchar, "set_putchar"
-    nbyte _f_of_putchar, _f_store
-    nbyte _f_return
-enddef _f_set_putchar
-
 defword _f_of_dstack_start, "=_dstack_start"
     nbyte _f_of_info, _f_lit, info_ds_base, _f_add_n, _f_load
     nbyte _f_return
@@ -828,30 +816,6 @@ defword _f_end_case, "end_case"
     nbyte _f_drop
     nbyte _f_return
 enddef _f_end_case
-
-    .type _init_putchar, @object
-_init_putchar:
-    nbyte _f_drop
-    nbyte _f_return
-    .size _init_putchar, . - _init_putchar
-
-defword _f_b_dot, "b."
-    nbyte _f_of_putchar, _f_load
-    nbyte _f_run
-    nbyte _f_return
-enddef _f_b_dot
-
-defword _f_s_dot, "s."
-    list 1f
-        nbyte _f_drop
-        nbyte _f_dup, _f_b_load_u, _f_b_dot
-        nbyte _f_lit, 1, _f_add
-        nbyte _f_return
-    1:
-    nbyte _f_count
-    nbyte _f_drop
-    nbyte _f_return
-enddef _f_s_dot
 
 defword _f_name_of_def, "name_of_def"
     // ( p:def -- p:name n:name )
@@ -1401,26 +1365,6 @@ defword _f_process_line, "process_line"
     nbyte _f_return
 enddef _f_process_line
 
-defword _f_print_error_line, "print_error_line"
-    // ( p:line n:line p:word n:word -- )
-    nbyte _f_lcomma, _f_lcomma
-    // ( p:line n:line )
-    nbyte _f_over, _f_add, _f_swap
-    // ( p:lineend p:line )
-    nbyte _f_dup, _f_lit, 1, _f_lload, _f_swap, _f_sub, _f_s_dot
-    str ">>>"
-    nbyte _f_s_dot
-    nbyte _f_lit, 1, _f_lload
-    nbyte _f_lit, 0, _f_lload
-    nbyte _f_pdup, _f_s_dot
-    str "<<<"
-    nbyte _f_s_dot
-    nbyte _f_add
-    // ( p:lineend p:afterword )
-    nbyte _f_dup, _f_nrot, _f_sub, _f_s_dot
-    nbyte _f_return
-enddef _f_print_error_line
-
 defword _f_buf_get_line, "buf_get_line"
     // ( p:buf n:buf -- n:line )
     nbyte _f_over, _f_add, _f_over
@@ -1472,7 +1416,7 @@ defword _f_buf_get_line, "buf_get_line"
     nbyte _f_return
 enddef _f_buf_get_line
 
-defword _f_evaluate, "evaluate"
+defword _f_early_evaluate, "_early_evaluate"
     // ( p:buf n:buf -- ??? )
     nbyte _f_lit, -1
     nbyte _f_align, _f_of_here, _f_load
@@ -1533,10 +1477,9 @@ defword _f_evaluate, "evaluate"
             3:
             list 3f
                 // ( p:buf n:buf p:line n:line p:word n:word p:msg n:msg )
-                // Print error and quit evaluating
-                nbyte _f_s_dot
-                nbyte _f_lit, '\n', _f_b_dot
-                nbyte _f_print_error_line
+                // Got an error but we can't print anything, bail
+                nbyte _f_bkpt
+                nbyte _f_pdrop, _f_pdrop, _f_pdrop
                 nbyte _f_lit, 0
                 nbyte _f_return
             3:
@@ -1548,12 +1491,12 @@ defword _f_evaluate, "evaluate"
     1:
     nbyte _f_repeat
     nbyte _f_return
-enddef _f_evaluate
+enddef _f_early_evaluate
 
 defword _f_init, "_init"
     nbyte _f_of_script, _f_of_script_end
     nbyte _f_over, _f_sub
-    nbyte _f_evaluate
+    nbyte _f_early_evaluate
     nbyte _f_exit
 enddef _f_init
 

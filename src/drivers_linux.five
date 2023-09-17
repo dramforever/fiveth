@@ -4,10 +4,10 @@
     1 swap 1 0 0 0 0 64 syscall drop drop
 ] define
 
-[
+"b." [
     dup 10 = [ 13 putchar_raw ] if
     putchar_raw
-] set_putchar
+] define
 
 "getchar" [
     lhere native lallot

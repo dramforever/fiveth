@@ -57,8 +57,7 @@
 
 #define global_here 0
 #define global_last 1
-#define global_putchar 2
-#define global_size 3
+#define global_size 2
 
 #ifndef START_ADDR
 #define START_ADDR 0

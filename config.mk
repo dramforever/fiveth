@@ -36,7 +36,7 @@ START_ADDR =
 INIT_OBJ = init_$(PLATFORM).o
 
 # Scripts to run at boot
-SCRIPTS = bootstrap.five drivers_$(PLATFORM).five $(APP).five
+SCRIPTS = bootstrap.five drivers_$(PLATFORM).five utils.five $(APP).five
 
 ### Toolchain
 

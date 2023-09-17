@@ -1,6 +1,6 @@
-[
+"b." [
     0 0 0 0 0 0 1 syscall drop drop
-] set_putchar
+] define
 
 "sbi_getchar" [
     0 0 0 0 0 0 0 2 syscall drop
