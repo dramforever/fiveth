@@ -134,17 +134,6 @@ tuck 2 +n !
     ] repeat
 ] define
 
-; Overridable definition
-"define_ind" [ define ] define
-
-"getchar_ready" [ 1 ] define_ind
-"getchar_try" [ 1 neg ] define_ind
-
-"getchar" [
-    [ getchar_ready =0 ] repeat
-    getchar_try
-] define
-
 "while" [ ; ( l:cond l:body -- )
     [
         l, l,

@@ -11,8 +11,9 @@
     ; Add CR before LF
     dup 10 = [ 13 uart_putchar ] if
     uart_putchar
-] "b." setind
+] set_putchar
 
-[ uart_lsr 1 & ] "getchar_ready" setind
-
-[ UART0_BASE w@ ] "getchar_try" setind
+"getchar" [
+    [ uart_lsr 1 & =0 ] repeat
+    UART0_BASE w@
+] define

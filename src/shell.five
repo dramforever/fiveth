@@ -33,7 +33,7 @@ reset_line
     [
         getchar
         begin_case
-        [ dup 4 = ] [ drop sys_exit ] case
+        [ dup 4 = ] [ drop _exit ] case
         [ dup 3 = ] [ drop 0 0 ] case
         [ dup 13 = ] [ drop 1 0 ] case
         [ dup ?backspace ] [ drop backspace 1 ] case

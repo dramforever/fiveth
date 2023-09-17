@@ -47,6 +47,13 @@
 #define o_namelen (3 * NATIVE)
 #define o_payload (4 * NATIVE)
 
+#define info_dsp (0 * NATIVE)
+#define info_ip (1 * NATIVE)
+#define info_rsp (2 * NATIVE)
+#define info_rfp (3 * NATIVE)
+#define info_ds_base (4 * NATIVE)
+#define info_rs_base (5 * NATIVE)
+
 #ifndef START_ADDR
 #define START_ADDR 0
 #endif

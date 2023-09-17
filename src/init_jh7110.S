@@ -19,10 +19,23 @@ func _start
     csrw stvec, t0
 
     li t0, 0x1000
-    add a0, sp, t0 // Data stack
-    add a1, a0, t0 // Return stack
-    add a2, a1, t0 // Allot space
-    tail fiveth_main
+    add a2, sp, t0 // Data stack
+    add a3, a2, t0 // Return stack
+    add s0, a3, t0 // Allot space
+
+    addi sp, sp, - ALIGN(6 * NATIVE)
+    mv a0, sp
+    la a1, init_word
+    call fiveth_init_info
+
+    mv a0, s0
+    call fiveth_init_base
+
+    mv a0, sp
+    mv a1, s0
+    call fiveth_run
+
+    j _hang
 endfunc _start
 
     .section .text

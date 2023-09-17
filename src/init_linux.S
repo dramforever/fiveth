@@ -11,10 +11,24 @@ func _start
 
     call _do_relocate
 
-    la a0, data_stack
-    la a1, return_stack
-    la a2, allot_space
-    tail fiveth_main
+    addi sp, sp, - ALIGN(6 * NATIVE)
+    mv a0, sp
+    la a1, init_word
+    la a2, data_stack
+    la a3, return_stack
+    call fiveth_init_info
+
+    la a0, allot_space
+    call fiveth_init_base
+
+    mv a0, sp
+    la a1, allot_space
+    call fiveth_run
+
+    li a0, 0
+    li a7, 93
+    ecall
+    unimp
 endfunc _start
 
     .section .bss

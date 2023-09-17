@@ -2,34 +2,72 @@
 
     .section .text
 
-    // [[noreturn]] void fiveth_main(
-    //     void *data_stack,
-    //     void *return_stack,
-    //     void *allot_space
-    // );
-    .global fiveth_main
-func fiveth_main
-    la t1, _f_of_dstack
-    sn a0, o_payload(t1)
-    la t1, _f_of_rstack
-    sn a1, o_payload(t1)
-    la t1, _f_of_allot_space
-    sn a2, o_payload(t1)
+    // void fiveth_run(struct fiveth_info *info, void *base);
+    .global fiveth_run
+func fiveth_run
+    addi sp, sp, - ALIGN(7 * NATIVE)
+    sn ra, (2 * NATIVE)(sp)
+    sn s0, (3 * NATIVE)(sp)
+    sn s1, (4 * NATIVE)(sp)
+    sn s2, (5 * NATIVE)(sp)
+    sn s3, (6 * NATIVE)(sp)
 
-    la t0, _last_word
-    la t1, last_word
-    sn t0, (t1)
+    ln s_dsp, info_dsp(a0)
+    ln s_ip, info_ip(a0)
+    ln s_rsp, info_rsp(a0)
+    ln s_rfp, info_rfp(a0)
 
-    la t1, here_pointer
-    sn a2, (t1)
+    sn a0, (0 * NATIVE)(sp)
+    sn a1, (1 * NATIVE)(sp)
 
-    mv s_dsp, a0
-    mv s_rsp, a1
-    mv s_rfp, s_rsp
-    la s_ip, _f_init
-    addi s_ip, s_ip, o_payload
     tail _do_go
-endfunc fiveth_main
+endfunc fiveth_run
+
+func _fiveth_exit
+    ln a0, (0 * NATIVE)(sp)
+
+    sn s_dsp, info_dsp(a0)
+    sn s_ip, info_ip(a0)
+    sn s_rsp, info_rsp(a0)
+    sn s_rfp, info_rfp(a0)
+
+    ln ra, (2 * NATIVE)(sp)
+    ln s0, (3 * NATIVE)(sp)
+    ln s1, (4 * NATIVE)(sp)
+    ln s2, (5 * NATIVE)(sp)
+    ln s3, (6 * NATIVE)(sp)
+    addi sp, sp, ALIGN(7 * NATIVE)
+    ret
+endfunc _fiveth_exit
+
+    // void fiveth_init_base(void *base)
+    .global fiveth_init_base
+func fiveth_init_base
+    addi a1, a0, 3 * NATIVE
+    sn a1, (0 * NATIVE)(a0)
+    la a1, _last_word
+    sn a1, (1 * NATIVE)(a0)
+    li a1, -1
+    sn a1, (2 * NATIVE)(a0)
+    ret
+endfunc fiveth_init_base
+
+    // void fiveth_init_info(
+    //     struct fiveth_info *info,
+    //     void *ip,
+    //     void *ds,
+    //     void *rs,
+    // );
+    .global fiveth_init_info
+func fiveth_init_info
+    sn a1, info_ip(a0)
+    sn a2, info_dsp(a0)
+    sn a2, info_ds_base(a0)
+    sn a3, info_rsp(a0)
+    sn a3, info_rfp(a0)
+    sn a3, info_rs_base(a0)
+    ret
+endfunc fiveth_init_info
 
     .weak _do_relocate
 func _do_relocate
@@ -151,12 +189,6 @@ endfunc _code_\label
         _newword \label, "\name", _code_rundef
     .endm
 
-    .macro defword_ind label, name
-        _newword \label, "\name", _code_runindirect
-        nbyte 1f
-1:
-    .endm
-
     .macro enddef label
         .size \label, . - \label
     .endm
@@ -196,6 +228,25 @@ codeword _f_bkpt, "bkpt", -1
     ebreak
     tail _do_next
 endcode _f_bkpt
+
+codeword _f_exit, "_exit"
+    addi s_ip, s_ip, NATIVE
+    tail _fiveth_exit
+endcode _f_exit
+
+codeword _f_of_info, "=_info"
+    ln a0, (0 * NATIVE)(sp)
+    sn a0, (s_dsp)
+    addi s_dsp, s_dsp, NATIVE
+    tail _do_next
+endcode _f_of_info
+
+codeword _f_of_base, "=_base"
+    ln a0, (1 * NATIVE)(sp)
+    sn a0, (s_dsp)
+    addi s_dsp, s_dsp, NATIVE
+    tail _do_next
+endcode _f_of_base
 
 codeword _f_syscall, "syscall"
     ln a0, (-8 * NATIVE)(s_dsp)
@@ -485,27 +536,6 @@ constword _f_of_runconst, "=_runconst", _code_runconst
 constword _f_of_script, "=_script", _script
 constword _f_of_script_end, "=_script_end", _script_end
 
-// Filled at init time
-constword _f_of_dstack, "=_dstack_start", 0
-constword _f_of_rstack, "=_rstack_start", 0
-constword _f_of_allot_space, "=_allot_space", 0
-
-varword _f_of_here, "=here", here_pointer
-varword _f_of_last, "=last", last_word
-
-defword_ind _f_sys_exit, "sys_exit"
-    list 1f
-    nbyte _f_bkpt
-    nbyte _f_lit, 1
-1:
-    nbyte _f_repeat
-enddef _f_sys_exit
-
-defword_ind _f_b_dot, "b."
-    nbyte _f_drop
-    nbyte _f_return
-enddef _f_b_dot
-
 defword _f_dup, "dup"
     // ( a -- a a )
     nbyte _f_lcomma
@@ -679,6 +709,31 @@ defword _f_align, "align"
     nbyte _f_return
 enddef _f_align
 
+defword _f_of_here, "=here"
+    nbyte _f_of_base
+    nbyte _f_return
+enddef _f_of_here
+
+defword _f_of_last, "=last"
+    nbyte _f_of_base, _f_lit, 1, _f_add_n
+    nbyte _f_return
+enddef _f_of_last
+
+defword _f_of_putchar, "=_putchar"
+    nbyte _f_of_base, _f_lit, 2, _f_add_n
+    nbyte _f_return
+enddef _f_of_putchar
+
+defword _f_set_putchar, "set_putchar"
+    nbyte _f_of_putchar, _f_store
+    nbyte _f_return
+enddef _f_set_putchar
+
+defword _f_of_dstack_start, "=_dstack_start"
+    nbyte _f_of_info, _f_lit, 4, _f_add_n, _f_load
+    nbyte _f_return
+enddef _f_of_dstack_start
+
 defword _f_ifelse, "ifelse"
     // ( t l l -- )
     nbyte _f_rot
@@ -784,6 +839,21 @@ defword _f_end_case, "end_case"
     nbyte _f_drop
     nbyte _f_return
 enddef _f_end_case
+
+defword _f_b_dot, "b."
+    nbyte _f_of_putchar, _f_load
+    nbyte _f_dup, _f_not, _f_eqz
+    list 1f
+        nbyte _f_pdrop
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_run
+        nbyte _f_return
+    1:
+    nbyte _f_ifelse
+    nbyte _f_return
+enddef _f_b_dot
 
 defword _f_s_dot, "s."
     list 1f
@@ -1498,9 +1568,12 @@ defword _f_init, "_init"
     nbyte _f_of_script, _f_of_script_end
     nbyte _f_over, _f_sub
     nbyte _f_evaluate
-    nbyte _f_sys_exit
+    nbyte _f_exit
 enddef _f_init
 
     .set _last_word, 1001b
+
+    .global init_word
+    .set init_word, _f_init + o_payload
 
     .section .note.GNU-stack, "", @progbits
