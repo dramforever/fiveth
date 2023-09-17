@@ -13,16 +13,16 @@ func _start
 
     addi sp, sp, - ALIGN(6 * NATIVE)
     mv a0, sp
-    la a1, init_word
-    la a2, data_stack
-    la a3, return_stack
+    lla a1, init_word
+    lla a2, data_stack
+    lla a3, return_stack
     call fiveth_init_info
 
-    la a0, allot_space
+    lla a0, allot_space
     call fiveth_init_base
 
     mv a0, sp
-    la a1, allot_space
+    lla a1, allot_space
     call fiveth_run
 
     li a0, 0

@@ -45,7 +45,7 @@ endfunc _fiveth_exit
 func fiveth_init_base
     addi a1, a0, 3 * NATIVE
     sn a1, (0 * NATIVE)(a0)
-    la a1, _last_word
+    lla a1, _last_word
     sn a1, (1 * NATIVE)(a0)
     li a1, -1
     sn a1, (2 * NATIVE)(a0)

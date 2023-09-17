@@ -15,7 +15,7 @@ func _start
 
     call _do_relocate
 
-    la t0, _hang
+    lla t0, _hang
     csrw stvec, t0
 
     li t0, 0x1000
@@ -25,7 +25,7 @@ func _start
 
     addi sp, sp, - ALIGN(6 * NATIVE)
     mv a0, sp
-    la a1, init_word
+    lla a1, init_word
     call fiveth_init_info
 
     mv a0, s0
