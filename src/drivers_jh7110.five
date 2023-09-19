@@ -17,3 +17,13 @@
     [ uart_lsr 1 & =0 ] repeat
     UART0_BASE w@
 ] define
+
+"clksrc!" [ 24 << 318898176 w! ] define
+"clkosc" [ 0 clksrc! ] define
+"clkpll" [ 1 clksrc! ] define
+
+"pll0_settle" [ [ 318963744 w@ 26 >> 1 & =0 ] repeat ] define
+"pll0!" [ clkosc 318963740 w! pll0_settle clkpll ] define
+"pll0@" [ 318963740 w@ ] define
+
+"clk_set_1g5" [ 188 pll0! ] define
