@@ -14,3 +14,13 @@ best you can hope for.
 ## Overflowing and underflowing
 
 There's currently no checks for overflowing or underflowing stacks.
+
+## Line-based parsing
+
+To make handling of parsing errors easier, parsing is done line by line. The
+parsed result is only run if an entire line has been parsed. This means that
+defined words won't exist until the next line.
+
+```
+"print" [ . ] define  3 print ; Undefined word "print"
+```
