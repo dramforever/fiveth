@@ -77,13 +77,13 @@ Equivalent to an `ifelse` chain:
 `case` has the following three possibilities:
 
 ```
-( ..a 0 cond:( ..a -- c ) body:( ..a -- ..b ) -- ..a 0 ) if c == 0
+( ..a 0 cond:( ..a -- ..a c ) body:( ..a -- ..b ) -- ..a 0 ) if c == 0
 Run cond, if c is false, run body and push 0
 
-( ..a 0 cond:( ..a -- c ) body:( ..a -- ..b ) -- ..b 1 )
+( ..a 0 cond:( ..a -- ..a c ) body:( ..a -- ..b ) -- ..b 1 ) if c != 0
 Run cond, if c is true, run body and push 1
 
-( ..a 1 cond:( ..a -- c ) body:( ..a -- ..b ) -- ..a 1 )
+( ..a 1 cond:( ..a -- ..a c ) body:( ..a -- ..b ) -- ..a 1 )
 Don't run cond or body
 ```
 
