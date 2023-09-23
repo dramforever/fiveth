@@ -78,7 +78,7 @@ Equivalent to an `ifelse` chain:
 
 ```
 ( ..a 0 cond:( ..a -- ..a c ) body:( ..a -- ..b ) -- ..a 0 ) if c == 0
-Run cond, if c is false, run body and push 0
+Run cond, if c is false, push 0 without running body
 
 ( ..a 0 cond:( ..a -- ..a c ) body:( ..a -- ..b ) -- ..b 1 ) if c != 0
 Run cond, if c is true, run body and push 1

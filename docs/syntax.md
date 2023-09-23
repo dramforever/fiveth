@@ -25,8 +25,8 @@ words ; Show currently defined words
 
 ## String literals
 
-The `"` is special. String literals are enclosed in `"`. It pushes the starting
-address and (byte) length of the string:
+The character `"` at the start of a word is special. String literals are
+enclosed in `"`. It pushes the starting address and (byte) length of the string:
 
 ```
 "test" ; Pushes an address and 4
