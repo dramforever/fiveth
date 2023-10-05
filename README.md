@@ -45,5 +45,5 @@ On Ubuntu 22.04:
 If you have Nix, you can try to use the provided `shell.nix` or `flake.nix`.
 
 On other systems, you can try to acquire a LLVM toolchain or a RISC-V toolchain,
-as well as GNU make. To run the Fiveth in an emulator, `qemu-riscv64` can be
-used to emulate a Linux binary but is only supported on Linux hosts.
+as well as GNU make. To run Fiveth in an emulator, `qemu-riscv64` can be used to
+emulate a Linux binary but is only supported on Linux hosts.
