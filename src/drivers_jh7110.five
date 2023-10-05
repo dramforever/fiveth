@@ -1,4 +1,4 @@
-"UART0_BASE" [ 268435456 ] define ; 0x10000000
+"UART0_BASE" [ 0x10000000 ] define
 
 "uart_lsr" [ UART0_BASE 20 + w@ ] define
 
@@ -18,12 +18,12 @@
     UART0_BASE w@
 ] define
 
-"clksrc!" [ 24 << 318898176 w! ] define
+"clksrc!" [ 24 << 0x13020000 w! ] define
 "clkosc" [ 0 clksrc! ] define
 "clkpll" [ 1 clksrc! ] define
 
-"pll0_settle" [ [ 318963744 w@ 26 >> 1 & =0 ] repeat ] define
-"pll0!" [ clkosc 318963740 w! pll0_settle clkpll ] define
-"pll0@" [ 318963740 w@ ] define
+"pll0_settle" [ [ 0x13030020 w@ 26 >> 1 & =0 ] repeat ] define
+"pll0!" [ clkosc 0x1303001c w! pll0_settle clkpll ] define
+"pll0@" [ 0x1303001c w@ ] define
 
 "clk_set_1g5" [ 188 pll0! ] define

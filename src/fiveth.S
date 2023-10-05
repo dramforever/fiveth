@@ -927,6 +927,106 @@ defword _f_parse_decimal, "parse_decimal"
     nbyte _f_return
 enddef _f_parse_decimal
 
+defword _f_hex_digit, "_hex_digit"
+    nbyte _f_begin_case
+    list 1f
+        nbyte _f_dup, _f_lit, '0', _f_lit, '9', _f_between
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_lit, '0', _f_sub, _f_lit, 1
+        nbyte _f_return
+    1:
+    nbyte _f_case
+
+    list 1f
+        nbyte _f_dup, _f_lit, 'a', _f_lit, 'f', _f_between
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_lit, 'a' - 10, _f_sub, _f_lit, 1
+        nbyte _f_return
+    1:
+    nbyte _f_case
+
+    list 1f
+        nbyte _f_dup, _f_lit, 'A', _f_lit, 'F', _f_between
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_lit, 'A' - 10, _f_sub, _f_lit, 1
+        nbyte _f_return
+    1:
+    nbyte _f_case
+
+    list 1f
+        nbyte _f_lit, 1
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_lit, 0
+        nbyte _f_return
+    1:
+    nbyte _f_case
+
+    nbyte _f_end_case
+    nbyte _f_return
+enddef _f_hex_digit
+
+defword _f_parse_hex, "parse_hex"
+    nbyte _f_lit, 0, _f_lit, 1, _f_pswap
+    // Check non-zero length
+    nbyte _f_rot, _f_over, _f_eqz, _f_eqz, _f_and, _f_nrot
+    list 1f
+        nbyte _f_drop
+        // ( number t:success p:word )
+        nbyte _f_dup, _f_b_load_u, _f_hex_digit
+        // ( number t:success p:word digit valid )
+        nbyte _f_lcomma, _f_lcomma
+        nbyte _f_rot, _f_lit, 4, _f_shl, _f_lit, 1, _f_lload, _f_or
+        nbyte _f_rot, _f_lit, 0, _f_lload, _f_and
+        nbyte _f_rot
+        nbyte _f_lit, 1, _f_add
+        nbyte _f_return
+    1:
+    nbyte _f_count
+    nbyte _f_drop
+    nbyte _f_return
+enddef _f_parse_hex
+
+defword _f_is_hex_literal, "?hex_literal"
+    nbyte _f_lit, 2, _f_lt
+    list 1f
+        nbyte _f_drop, _f_lit, 0
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_dup
+        nbyte _f_b_load_u, _f_lit, '0', _f_eq, _f_swap
+        nbyte _f_lit, 1, _f_add, _f_b_load_u, _f_lit, 'x', _f_eq
+        nbyte _f_and
+        nbyte _f_return
+    1:
+    nbyte _f_ifelse
+    nbyte _f_return
+enddef _f_is_hex_literal
+
+defword _f_parse_number, "parse_number"
+    nbyte _f_pdup, _f_is_hex_literal
+    list 1f
+        nbyte _f_lit, 2, _f_sub
+        nbyte _f_swap, _f_lit, 2, _f_add, _f_swap
+        nbyte _f_parse_hex
+        nbyte _f_return
+    1:
+    list 1f
+        nbyte _f_parse_decimal
+        nbyte _f_return
+    1:
+    nbyte _f_ifelse
+    nbyte _f_return
+enddef _f_parse_number
+
 defword _f_is_whitespace, "?whitespace"
     // ( byte -- t )
     nbyte _f_lit, 0
@@ -1283,7 +1383,7 @@ defword _f_process_word, "_process_word"
         nbyte _f_return
     1:
     list 1f
-        nbyte _f_parse_decimal
+        nbyte _f_parse_number
         list 2f
             // ( p:fill p:tokens num )
             nbyte _f_swap, _f_lit, _f_lit, _f_append_token, _f_swap
