@@ -13,13 +13,16 @@ parsed as a number. Other words perform their defined actions.
 words
 ```
 
+A number starting with `0x` will be parsed as hexadecimal, so `0xff` means the
+same as `255`.
+
 ## Comments
 
 The word `;` is special. It and everything after it in a line is ignored as a
 comment:
 
 ```
-0 ; Push 123 on the stack
+123 ; Push 123 on the stack
 words ; Show currently defined words
 ```
 
@@ -29,7 +32,7 @@ The character `"` at the start of a word is special. String literals are
 enclosed in `"`. It pushes the starting address and (byte) length of the string:
 
 ```
-"test" ; Pushes an address and 4
+"test" ; Pushes an address and the length 4
 ; The first 4 bytes at the address are ASCII 't' 'e' 's' 't'
 ```
 
@@ -52,5 +55,4 @@ Lists can nest and can span multiple lines.
 ] count ; Same
 
 10 [ [ . ] count nl ] count ; Prints a number triangle
-
 ```
