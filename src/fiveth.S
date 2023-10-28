@@ -377,12 +377,12 @@ endcode _f_dhere
 
     // Control flow primitives
 
-codeword _f_jump, "_jump"
+codeword _f_jump, "__jump"
     ln s_ip, (1 * NATIVE)(s_ip)
     tail _do_go
 endcode _f_jump
 
-codeword _f_jif, "_jif"
+codeword _f_jif, "__jif"
     addi s_dsp, s_dsp, -1 * NATIVE
     ln a0, (s_dsp)
     ln a1, (1 * NATIVE)(s_ip)
