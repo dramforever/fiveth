@@ -27,3 +27,46 @@
 "pll0@" [ 0x1303001c w@ ] define
 
 "clk_set_1g5" [ 188 pll0! ] define
+
+"sd!" [ 0x16020000 + w! ] define
+"sd@" [ 0x16020000 + w@u ] define
+"sd_cmd" [ ; ( cmdarg cmd -- )
+    0x4 0x44 sd! ; Clear command done flag
+    swap
+    0x28 sd!
+    0x2c sd!
+] define
+
+"sd_waitcmd" [
+    sd_cmd
+    [ 0x44 sd@ 0x4 & =0 ] repeat ; Wait done
+] define
+
+"sd_init" [
+    0 0x00 sd! ; Set default operation mode, esp. no DMA
+
+    0 0xa000a141 sd_waitcmd ; Initialize card
+    0x200 0xa0002150 sd_waitcmd ; Set block length to 512
+
+    0x100 0x44 sd! ; Clear flags
+] define
+
+"sd_read" [ ; ( p:addr block -- )
+
+    0x200 0x20 sd! ; Byte count
+    0x200 0x1c sd! ; Block size
+
+    0xa0002351 sd_cmd ; Start reading
+
+    ; Read the data
+    0x200 2 >> [
+        [ 0x48 sd@ 0x4 & ] repeat
+        2 << over +
+        0x200 sd@ swap w!
+    ] count
+
+    drop
+
+    0x2c 0x44 sd! ; Clear flags
+
+] define
