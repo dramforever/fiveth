@@ -1,0 +1,93 @@
+"sd!" [ 0x16020000 + w! ] define
+"sd@" [ 0x16020000 + w@u ] define
+
+"sd_reset" [
+    ; Reset hardware, reset FIFO
+    0x3 0x00 sd!
+    [ 0x00 sd@ 0x3 & ] repeat
+] define
+
+"sd_cmd" [ ; ( cmdarg cmd -- )
+    0x4 0x44 sd! ; Clear command done flag
+    swap
+    0x28 sd!
+    0x2c sd!
+] define
+
+"sd_waitcmd_nocheck" [
+    sd_cmd
+    [ 0x44 sd@ 0x4 & =0 ] repeat ; Wait done
+] define
+
+"sd_waitcmd" [
+    sd_waitcmd_nocheck
+    0x44 sd@ 0x4 not & [
+        0x2c sd@ 0x3f & ; Get command
+        0x44 sd@ ; Get status
+        nl "SD error " s. .h "cmd " s. .
+    ] if
+] define
+
+"sd_mkcmd" [ 0xa0002140 | ] define
+"sd_longresp" [ 0x0080 | ] define
+"sd_doinit" [ 0x8000 | ] define
+"sd_dodata" [ 0x0200 | ] define
+"sd_nocrc" [ 0x0100 not & ] define
+"sd_noresp" [ 0x0040 not & ] define
+
+"sd_init" [
+    sd_reset
+
+    0 0x00 sd! ; Set default operation mode, esp. no DMA
+
+    0xffffffff 0x44 sd!
+    0xffffffff 0x14 sd!
+    ; 0xff 0x08 sd!
+    0x0 0x0c sd!
+    0x0 0x10 sd!
+    0x80202000 0x2c sd!
+    [ 0x2c sd@ 1 31 << & ] repeat
+
+    0x1 0x10 sd!
+    0x80202000 0x2c sd!
+    [ 0x2c sd@ 1 31 << & ] repeat
+
+    1 0x4 sd! ; Power up SD card
+
+    0x0   0 sd_mkcmd sd_noresp sd_doinit   sd_waitcmd ; GO_IDLE_STATE
+    0x104 0x44 sd!
+
+    0x1aa   8 sd_mkcmd   sd_waitcmd ; SEND_EXT_CSD
+
+    [
+        0   55 sd_mkcmd   sd_waitcmd ; APP_SEND_OP_COND
+        0x41ff8000   41 sd_mkcmd sd_nocrc   sd_waitcmd
+
+        ; Wait until not busy
+        0x30 sd@ 0x80000000 & =0
+    ] repeat
+
+    0   2 sd_mkcmd sd_nocrc sd_longresp   sd_waitcmd ; ALL_SEND_CID
+    0   3 sd_mkcmd sd_nocrc   sd_waitcmd ; SEND_RELATIVE_ADDR
+
+    0x30 sd@ 0xffff0000 & ; High 16 bits of response is card address
+    7 sd_mkcmd sd_nocrc ; SELECT_CARD
+    sd_waitcmd
+] define
+
+"sd_read" [ ; ( p:addr block -- )
+
+    0x200 0x20 sd! ; Byte count
+    0x200 0x1c sd! ; Block size
+
+    17 sd_mkcmd sd_dodata   sd_cmd ; Start reading
+
+    ; Read the data
+    0x200 2 >> [
+        [ 0x48 sd@ 0x4 & ] repeat
+        2 << over +
+        0x200 sd@ swap w!
+    ] count
+
+    drop
+] define
