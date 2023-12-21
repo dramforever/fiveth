@@ -40,22 +40,23 @@
 
     0 0x00 sd! ; Set default operation mode, esp. no DMA
 
-    0xffffffff 0x44 sd!
-    0xffffffff 0x14 sd!
+    0xffffffff 0x44 sd! ; Clear status
+    0xffffffff 0x14 sd! ; Disable interrupts
+
+    ; Set up block
     ; 0xff 0x08 sd!
     0x0 0x0c sd!
     0x0 0x10 sd!
     0x80202000 0x2c sd!
     [ 0x2c sd@ 1 31 << & ] repeat
 
-    0x1 0x10 sd!
+    0x1 0x10 sd! ; Enable clock
     0x80202000 0x2c sd!
     [ 0x2c sd@ 1 31 << & ] repeat
 
     1 0x4 sd! ; Power up SD card
 
     0x0   0 sd_mkcmd sd_noresp sd_doinit   sd_waitcmd ; GO_IDLE_STATE
-    0x104 0x44 sd!
 
     0x1aa   8 sd_mkcmd   sd_waitcmd ; SEND_EXT_CSD
 
