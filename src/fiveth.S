@@ -31,6 +31,40 @@ func exit_main
     ret
 end exit_main
 
+    // Utilities
+
+    // int memcmp(const void *s1, const void *s2, size_t n);
+func memcmp
+    beqz a2, 2f
+    add a2, a0, a2
+1:
+    lbu a4, (a0)
+    lbu a5, (a1)
+    bne a4, a5, 3f
+    addi a0, a0, 1
+    addi a1, a1, 1
+    bne a0, a2, 1b
+2:
+    li a0, 0
+    ret
+3:
+    sub a0, a4, a5
+    ret
+end memcmp
+
+    // size_t strlen(const char *s);
+func strlen
+    mv a4, a0
+1:
+    lb a5, (a0)
+    addi a0, a0, 1
+    bnez a5, 1b
+
+    sub a0, a0, a4
+    addi a0, a0, -1
+    ret
+end strlen
+
     .macro go
         ln a0, (s_ip)
         jr a0
@@ -212,6 +246,30 @@ defcode do_lload, "l@"
     next
 endcode do_lload
 
+defcode do_dsp, "dsp"
+    mv a0, s_dsp
+    addi s_dsp, s_dsp, -1 * NATIVE
+    sn a0, (s_dsp)
+    next
+endcode do_dsp
+
+defcode do_strlen, "strlen"
+    ln a0, (s_dsp)
+    call strlen
+    sn a0, (s_dsp)
+    next
+endcode do_strlen
+
+defcode do_memcmp, "memcmp"
+    ln a0, (2 * NATIVE)(s_dsp)
+    ln a1, (1 * NATIVE)(s_dsp)
+    ln a2, (0 * NATIVE)(s_dsp)
+    call memcmp
+    addi s_dsp, s_dsp, 2 * NATIVE
+    sn a0, (s_dsp)
+    next
+endcode do_strlen
+
 defcode do_print, "print"
     .pushsection .rodata.str1.1, "aMS", @progbits, 1
 1:
@@ -230,7 +288,14 @@ defcode do_puts, "puts"
     call puts
     addi s_dsp, s_dsp, 1 * NATIVE
     next
-endcode do_print
+endcode do_puts
+
+defcode do_putchar, "putchar"
+    ln a0, (s_dsp)
+    call putchar
+    addi s_dsp, s_dsp, 1 * NATIVE
+    next
+endcode do_putchar
 
     .macro unary label, name, insn
 defcode \label, "\name"
@@ -311,6 +376,31 @@ defcode do_select, "select"
     next
 endcode do_select
 
+def w_u_dump, "_dump" // ( p -- )
+    _ dup ; _lit data_stack_end ; _p eq
+    list 101
+        _ drop
+    endlist 101, 201, w_u_dump
+    list 101
+        _ dup ; _p load ; _p print
+        _lit NATIVE ; _p add
+        _tail u_dump
+    endlist 101, 201, w_u_dump
+    _tail ifelse
+enddef w_u_dump
+
+def w_dump, "dump"
+    _lit '(' ; _p putchar
+    _lit ' ' ; _p putchar
+    _p dsp ; _ u_dump
+    _lit ')' ; _p putchar
+    _lit '\n' ; _p putchar
+enddef w_dump
+
+def w_last_word, "last_word"
+    _lit last_word
+enddef w_last_word
+
 def w_dup, "dup"
     _p lcomma ; _lload 0 ; _lload 0
 enddef w_dup
@@ -318,6 +408,25 @@ enddef w_dup
 def w_drop, "drop"
     _p lcomma
 enddef w_drop
+
+def w_nip, "nip"
+    _p lcomma ; _p lcomma ; _lload 0
+enddef w_nip
+
+def w_over, "over"
+    _p lcomma ; _p lcomma
+    _lload 1 ; _lload 0 ; _lload 1
+enddef w_over
+
+def w_swap, "swap"
+    _p lcomma ; _p lcomma
+    _lload 0 ; _lload 1
+enddef w_swap
+
+def w_pdup, "pdup"
+    _p lcomma ; _p lcomma
+    _lload 1 ; _lload 0 ; _lload 1 ; _lload 0
+enddef w_pdup
 
 def w_ifelse, "ifelse"
     _p select ; _p tailrun
@@ -329,24 +438,112 @@ enddef w_comp_call
 def w_comp_prim, "_comp_prim"
 enddef w_comp_prim
 
-def w_print_dict, "print_dict"
-    _ dup ; _p nez
+def w_is_space, "?space"
+    _lit 0
+    _ over ; _lit ' '; _p eq ; _p or
+    _ over ; _lit '\t'; _p eq ; _p or
+    _ nip
+enddef w_is_space
+
+def w_is_sigil, "?sigil"
+    _lit 0
+    _ over ; _lit ':'; _p eq ; _p or
+    _ over ; _lit '"'; _p eq ; _p or
+    _ nip
+enddef w_is_sigil
+
+def w_skip_space, "skip_space"
+    _ dup ; _p b_load_u ; _ is_space
     list 101
-        _ dup ; _lit (1 * NATIVE) ; _p add ; _p load ; _p puts
-        _p load
-        _tail print_dict
-    endlist 101, 201, w_print_dict_end
+        _lit 1 ; _p add ; _tail skip_space
+    endlist 101, 201, w_skip_space_end
     list 101
-    endlist 101, 201, w_print_dict_end
+        // Done
+    endlist 101, 201, w_skip_space_end
     _tail ifelse
-enddef w_print_dict
+enddef w_skip_space
+
+def w_u_lookup, "_lookup" // ( p:name n:name p:entry -- p:entry )
+    _ dup ; _p eqz
+    list 101
+        _ nip ; _ nip
+    endlist 101, 201, w_u_lookup_end
+    list 101
+        _ pdup ; _lit NATIVE ; _p add ; _p load ; _p strlen ; _p eq
+        list 102
+            _p lcomma ; _p lcomma ; _p lcomma
+            _lload 2 ; _lload 1 ; _lload 0
+            _lload 2
+            _lload 0 ; _lit NATIVE ; _p add ; _p load
+            _lload 1 ; _p memcmp ; _p eqz
+            list 103
+                _ nip ; _ nip
+            endlist 103, 203, 202f
+            list 103
+                _p load ; _tail u_lookup
+            endlist 103, 203, 202f
+            _tail ifelse
+        endlist 102, 202, 201f
+        list 102
+            _p load ; _tail u_lookup
+        endlist 102, 202, 201f
+        _tail ifelse
+    endlist 101, 201, w_u_lookup_end
+    _tail ifelse
+enddef w_u_lookup
+
+def w_lookup, "lookup"
+    _ last_word ; _tail u_lookup
+enddef w_lookup
+
+def w_skip_word, "skip_word"
+    _ dup ; _p b_load_u
+    _ dup ; _ is_space ; _ swap ; _p eqz ; _p or
+    list 101
+    endlist 101, 201, w_skip_word_end
+    list 101
+        _ dup ; _p b_load_u
+        _ swap ; _lit 1 ; _p add ; _ swap
+        _ is_sigil
+        list 102
+        endlist 102, 202, 201f
+        list 102
+            _tail skip_word
+        endlist 102, 202, 201f
+        _tail ifelse
+    endlist 101, 201, w_skip_word_end
+    _tail ifelse
+enddef w_skip_word
+
+def w_lex, "lex"
+    _ skip_space
+    _ dup ; _p b_load_u ; _lit 0 ; _p eq
+    list 101
+        _ drop
+    endlist 101, 201, w_lex_end
+    list 101
+        _p lcomma
+        _lload 0 ; _ skip_word ; _p lcomma
+        _lload 0 ; _p puts
+        _lload 0 ; _lload 1 ; _lload 0 ; _p sub ; _ lookup ; _p print
+        _lload 1
+        _ dump
+        _tail lex
+    endlist 101, 201, w_lex_end
+    _tail ifelse
+enddef w_lex
 
 def w_init_program, "_init_program"
-    _lit last_word ; _ print_dict
+    _lit something ; _ lex
     _p exit
 enddef w_init_program
 
     .set last_word, 1011b
+
+    .section .rodata
+object something
+    .string "fn:test [ dup over drop ]"
+end something
 
     .section .bss
     .p2align LGNATIVE
