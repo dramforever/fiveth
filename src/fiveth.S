@@ -19,9 +19,8 @@ func main
     lla s_ip, w_init_program
     ln a0, (s_ip)
     jr a0
-end main
 
-func exit_main
+exit_main:
     li a0, 0
 
     ln ra, (0 * NATIVE)(sp)
@@ -32,7 +31,7 @@ func exit_main
     ln s_info, (5 * NATIVE)(sp)
     addi sp, sp, ALIGN(6 * NATIVE)
     ret
-end exit_main
+end main
 
     // Utilities
 
@@ -98,7 +97,7 @@ end do_call
 func do_dyn_call # Operand: list
     ln a0, (1 * NATIVE)(s_ip)
     ln a1, o_payload(a0)
-    beqz a1, 10f
+    beqz a1, 10f // Is undefined yet?
 
     // Patch into do_call
     lla a2, do_call
@@ -125,7 +124,7 @@ func do_dyn_call # Operand: list
     enter_frame
     lla s_ip, w_undef_dyn
     go
-end do_call
+end do_dyn_call
 
 func do_tail # Operand: list
     mv s_rsp, s_rfp
