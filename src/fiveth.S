@@ -229,6 +229,14 @@ defcode do_exit, "exit"
     j exit_main
 endcode do_exit
 
+defcode do_prim_alloca, "__prim_alloca"
+    ln a0, (s_dsp)
+    sub s_rsp, s_rsp, a0
+    andi s_rsp, s_rsp, -NATIVE
+    sn s_rsp, (s_dsp)
+    next
+endcode do_prim_alloca
+
 defcode do_lcomma, "l,"
     ln a0, (s_dsp)
     addi s_dsp, s_dsp, 1 * NATIVE
@@ -268,7 +276,16 @@ defcode do_memcmp, "memcmp"
     addi s_dsp, s_dsp, 2 * NATIVE
     sn a0, (s_dsp)
     next
-endcode do_strlen
+endcode do_memcmp
+
+defcode do_memcpy, "memcpy"
+    ln a0, (2 * NATIVE)(s_dsp)
+    ln a1, (1 * NATIVE)(s_dsp)
+    ln a2, (0 * NATIVE)(s_dsp)
+    call memcpy
+    addi s_dsp, s_dsp, 3 * NATIVE
+    next
+endcode do_memcpy
 
 defcode do_print, "print"
     .pushsection .rodata.str1.1, "aMS", @progbits, 1
@@ -376,14 +393,19 @@ defcode do_select, "select"
     next
 endcode do_select
 
+def w_alloca, "alloca"
+    _ swap ; _p prim_alloca ; _ swap
+    _p run // Not tailrun here
+enddef w_alloca
+
 def w_u_dump, "_dump" // ( p -- )
-    _ dup ; _lit data_stack_end ; _p eq
+    _ pdup ; _p eq
     list 101
-        _ drop
+        _ pdrop
     endlist 101, 201, w_u_dump
     list 101
+        _lit NATIVE ; _p sub
         _ dup ; _p load ; _p print
-        _lit NATIVE ; _p add
         _tail u_dump
     endlist 101, 201, w_u_dump
     _tail ifelse
@@ -392,7 +414,7 @@ enddef w_u_dump
 def w_dump, "dump"
     _lit '(' ; _p putchar
     _lit ' ' ; _p putchar
-    _p dsp ; _ u_dump
+    _p dsp ; _lit data_stack_end ; _ u_dump
     _lit ')' ; _p putchar
     _lit '\n' ; _p putchar
 enddef w_dump
@@ -428,14 +450,77 @@ def w_pdup, "pdup"
     _lload 1 ; _lload 0 ; _lload 1 ; _lload 0
 enddef w_pdup
 
+def w_pdrop, "pdrop"
+    _p lcomma ; _p lcomma
+enddef w_pdrop
+
 def w_ifelse, "ifelse"
     _p select ; _p tailrun
 enddef w_ifelse
 
+def w_s_dot, "s."
+    _ dup
+    list 101
+        _ over ; _p b_load_u ; _p putchar
+        _lit 1 ; _p sub
+        _ swap ; _lit 1 ; _p add ; _ swap
+        _tail s_dot
+    endlist 101, 201, w_s_dot_end
+    list 101
+        _ pdrop
+    endlist 101, 201, w_s_dot_end
+    _tail ifelse
+enddef w_s_dot
+
+def w_lx_show, "lx.show"
+    _p lcomma
+    _lload 0 ; _lit lx_istr ; _p add ; _p load
+    _lload 0 ; _lit lx_ipos ; _p add ; _p load
+    _ over ; _p sub ; _ s_dot
+
+    _lit '<' ; _p putchar
+    _lit '<' ; _p putchar
+    _lit '<' ; _p putchar
+
+    _lload 0 ; _lit lx_ipos ; _p add ; _p load
+    _lload 0 ; _lit lx_iend ; _p add ; _p load
+    _ over ; _p sub ; _ s_dot
+
+    _lit '\n' ; _p putchar
+enddef w_lx_show
+
+def w_lx_input_store, "lx.input!"
+    _p lcomma ; _p lcomma ; _p lcomma
+    _lload 1 ; _lload 2 ; _lit lx_ipos ; _p add ; _p store
+    _lload 1 ; _lload 2 ; _lit lx_istr ; _p add ; _p store
+
+    _lload 1 ; _lload 0 ; _p add
+    _lload 2 ; _lit lx_iend ; _p add ; _p store
+enddef w_lx_input_store
+
+def w_lx_buf_store, "lx.buf!"
+    _p lcomma ; _p lcomma ; _p lcomma
+    _lload 1 ; _lload 2 ; _lit lx_ppos ; _p add ; _p store
+    _lload 1 ; _lload 2 ; _lit lx_pbuf ; _p add ; _p store
+
+    _lload 1 ; _lload 0 ; _p add
+    _lload 2 ; _lit lx_pend ; _p add ; _p store
+enddef w_lx_buf_store
+
+def w_lx_append, "lx.append"
+    _ swap ; _p lcomma
+    _lload 0 ; _lit lx_ppos ; _p add ; _p load
+    _ dup ; _lit NATIVE ; _p add ; _lload 0 ; _lit lx_ppos ; _p add ; _p store
+    _p store
+enddef w_lx_append
+
 def w_comp_call, "_comp_call"
+    _ over ; _lit do_call + 1 ; _ lx_append
+    _lit o_payload ; _p add ; _p load ; _tail lx_append
 enddef w_comp_call
 
 def w_comp_prim, "_comp_prim"
+    _lit o_payload ; _p add ; _p load ; _tail lx_append
 enddef w_comp_prim
 
 def w_is_space, "?space"
@@ -466,26 +551,31 @@ enddef w_skip_space
 def w_u_lookup, "_lookup" // ( p:name n:name p:entry -- p:entry )
     _ dup ; _p eqz
     list 101
+        // End of dictionary, lookup failure
         _ nip ; _ nip
     endlist 101, 201, w_u_lookup_end
     list 101
-        _ pdup ; _lit NATIVE ; _p add ; _p load ; _p strlen ; _p eq
+        _ pdup ; _lit o_name ; _p add ; _p load ; _p strlen ; _p eq
         list 102
+            // Name length matches
             _p lcomma ; _p lcomma ; _p lcomma
             _lload 2 ; _lload 1 ; _lload 0
             _lload 2
-            _lload 0 ; _lit NATIVE ; _p add ; _p load
+            _lload 0 ; _lit o_name ; _p add ; _p load
             _lload 1 ; _p memcmp ; _p eqz
             list 103
+                // Name matches
                 _ nip ; _ nip
             endlist 103, 203, 202f
             list 103
-                _p load ; _tail u_lookup
+                // Not a match, try next
+                _lit o_link ; _p add ; _p load ; _tail u_lookup
             endlist 103, 203, 202f
             _tail ifelse
         endlist 102, 202, 201f
         list 102
-            _p load ; _tail u_lookup
+            // Not a match, try next
+            _lit o_link ; _p add ; _p load ; _tail u_lookup
         endlist 102, 202, 201f
         _tail ifelse
     endlist 101, 201, w_u_lookup_end
@@ -515,38 +605,83 @@ def w_skip_word, "skip_word"
     _tail ifelse
 enddef w_skip_word
 
-def w_lex, "lex"
+def w_lx_parse, "lx.parse"
+    _ dup ; _lit lx_ipos ; _p add ; _p load
     _ skip_space
     _ dup ; _p b_load_u ; _lit 0 ; _p eq
     list 101
-        _ drop
-    endlist 101, 201, w_lex_end
+        _ pdrop
+    endlist 101, 201, w_lx_parse_end
     list 101
         _p lcomma
         _lload 0 ; _ skip_word ; _p lcomma
-        _lload 0 ; _p puts
-        _lload 0 ; _lload 1 ; _lload 0 ; _p sub ; _ lookup ; _p print
+
+        // Lookup current word
+        _lload 0 ; _lload 1 ; _lload 0 ; _p sub ; _ lookup
+
+        // Bump lx_ipos
+        _ swap
         _lload 1
-        _ dump
-        _tail lex
-    endlist 101, 201, w_lex_end
+        _ over ; _lit lx_ipos ; _p add ; _p store
+        _ swap
+
+        _ dup
+        list 102
+            _ over ; _ swap
+            _ dup ; _lit o_comp ; _p add ; _p load ; _p run
+            _tail lx_parse
+        endlist 102, 202, 201f
+        list 102
+            _ drop
+            _ lx_show
+            _p exit // FIXME: Error handling
+        endlist 102, 202, 201f
+        _tail ifelse
+    endlist 101, 201, w_lx_parse_end
     _tail ifelse
-enddef w_lex
+enddef w_lx_parse
+
+def w_lx_run, "lx.run"
+    _p lcomma
+    _lload 0 ; _lit do_endlist ; _ lx_append
+    _lload 0 ; _lit 0 ; _ lx_append
+    _lload 0 ; _lit 0 ; _ lx_append
+    _lload 0 ; _lit lx_pbuf ; _p add ; _p load ; _p run
+    _lload 0 ; _lit lx_pbuf ; _p add ; _p load
+    _lload 0 ; _lit lx_ppos ; _p add ; _p store
+enddef w_lx_run
 
 def w_init_program, "_init_program"
-    _lit something ; _ lex
+    _lit 8 * NATIVE // FIXME: Parser struct size
+    list 101
+        _p lcomma
+        _lload 0 ; _lit parse_buf ; _lit (parse_buf_end - parse_buf) ; _ lx_buf_store
+        _lload 0 ; _lit something ; _ dup ; _p strlen ; _ lx_input_store
+        _lit 0 ; _lload 0 ; _lit lx_listptr ; _p add ; _p store
+        _lload 0 ; _ lx_parse
+        _lload 0 ; _ lx_run
+    endlist 101, 201, w_init_program_end
+    _ alloca
     _p exit
 enddef w_init_program
 
     .set last_word, 1011b
 
+    .section .data
+
     .section .rodata
 object something
-    .string "fn:test [ dup over drop ]"
+    .string "dsp dsp dump + print dump"
 end something
 
     .section .bss
     .p2align LGNATIVE
+
+object parse_buf
+    .zero 4096
+parse_buf_end:
+end parse_buf
+
 object data_stack
     .zero 4096
 data_stack_end:
@@ -556,3 +691,7 @@ object return_stack
     .zero 4096
 return_stack_end:
 end return_stack
+
+object data_space
+    .zero 128 * 4096
+end data_space

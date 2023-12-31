@@ -46,4 +46,17 @@
         .size \name, . - \name
     .endm
 
+#define o_link (0 * NATIVE)
+#define o_name (1 * NATIVE)
+#define o_comp (2 * NATIVE)
+#define o_payload (3 * NATIVE)
+
+#define lx_ipos (0 * NATIVE)
+#define lx_istr (1 * NATIVE)
+#define lx_iend (2 * NATIVE)
+#define lx_ppos (3 * NATIVE)
+#define lx_pbuf (4 * NATIVE)
+#define lx_pend (5 * NATIVE)
+#define lx_listptr (6 * NATIVE)
+
 #endif /* _FIVETH_DEFS_H */
