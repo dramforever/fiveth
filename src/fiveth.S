@@ -686,18 +686,30 @@ enddef w_comp_open_bracket
 defspecial "[", w_comp_open_bracket
 
 def w_comp_close_bracket, "_comp_close_bracket"
-    _ drop ; _p lcomma
-    _lload 0 ; _lit do_endlist ; _ lx_append
-    _lload 0 ; _lit lx_listptr ; _p add ; _p load
-    _ dup ; _p load ; _lload 0 ; _lit lx_listptr ; _p add ; _p store
-    _lload 0 ; _lit lx_ppos ; _p add ; _p load
-    // ( begin end )
-    _ over ; _lload 0 ; _lit lx_ppos ; _p add ; _p store
-    _ swap ; _lit NATIVE ; _p add ; _ swap
-    _ brk_align
-    _ over ; _p sub ; _ brk_copy
-    _lload 0 ; _lit do_lit + 1 ; _ lx_append
-    _lload 0 ; _ swap ; _ lx_append
+    _ drop
+    _ dup ; _ lx_is_top
+    _ dump
+    list 101
+        _litzs "Unmatched closing bracket" ; _ zs_dot
+        _lit '\n' ; _p putchar
+        _ lx_show
+        _ error
+    endlist 101, 201, w_comp_close_bracket_end
+    list 101
+        _p lcomma
+        _lload 0 ; _lit do_endlist ; _ lx_append
+        _lload 0 ; _lit lx_listptr ; _p add ; _p load
+        _ dup ; _p load ; _lload 0 ; _lit lx_listptr ; _p add ; _p store
+        _lload 0 ; _lit lx_ppos ; _p add ; _p load
+        // ( begin end )
+        _ over ; _lload 0 ; _lit lx_ppos ; _p add ; _p store
+        _ swap ; _lit NATIVE ; _p add ; _ swap
+        _ brk_align
+        _ over ; _p sub ; _ brk_copy
+        _lload 0 ; _lit do_lit + 1 ; _ lx_append
+        _lload 0 ; _ swap ; _ lx_append
+    endlist 101, 201, w_comp_close_bracket_end
+    _tail ifelse
 enddef w_comp_close_bracket
 
 defspecial "]", w_comp_close_bracket
@@ -807,15 +819,19 @@ def w_lx_run, "lx.run"
     _lload 0 ; _lit lx_ppos ; _p add ; _p store
 enddef w_lx_run
 
+def w_lx_is_top, "lx.?top"
+    _lit lx_listptr ; _p add ; _p load ; _p eqz
+enddef w_lx_is_top
+
 def w_lx_check_run, "lx.check_run"
-    _ dup ; _lit lx_listptr ; _p add ; _p load
-    list 101
-        _ drop
-    endlist 101, 201, w_lx_check_run_end
+    _ dup ; _ lx_is_top
     list 101
         _p lcomma
         _ lx_run
         _lload 0
+    endlist 101, 201, w_lx_check_run_end
+    list 101
+        _ drop
     endlist 101, 201, w_lx_check_run_end
     _tail ifelse
 enddef w_lx_check_run
@@ -884,7 +900,7 @@ end info_struct
 
     .section .rodata
 object something
-    .string "dsp dump fn:test [ dsp print test ] define test"
+    .string "dsp dump fn:test ] [ dsp print test ] define test"
 end something
 
     .section .bss
