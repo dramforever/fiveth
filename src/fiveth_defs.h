@@ -27,6 +27,7 @@
 #define s_ip s1
 #define s_rsp s2
 #define s_rfp s3
+#define s_info s4
 
 // Stack alignment
 #define ALIGN(offset) (((offset) + 0xf) & ~0xf)
@@ -58,5 +59,9 @@
 #define lx_pbuf (4 * NATIVE)
 #define lx_pend (5 * NATIVE)
 #define lx_listptr (6 * NATIVE)
+
+#define info_brk (0 * NATIVE)
+#define info_brk_lim (1 * NATIVE)
+#define info_last (2 * NATIVE)
 
 #endif /* _FIVETH_DEFS_H */

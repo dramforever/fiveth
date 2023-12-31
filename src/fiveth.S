@@ -4,16 +4,18 @@
 
     .global main
 func main
-    addi sp, sp, - ALIGN(5 * NATIVE)
+    addi sp, sp, - ALIGN(6 * NATIVE)
     sn ra, (0 * NATIVE)(sp)
     sn s_dsp, (1 * NATIVE)(sp)
     sn s_ip, (2 * NATIVE)(sp)
     sn s_rsp, (3 * NATIVE)(sp)
     sn s_rfp, (4 * NATIVE)(sp)
+    sn s_info, (4 * NATIVE)(sp)
 
     lla s_dsp, data_stack_end
     lla s_rsp, return_stack_end
     mv s_rfp, s_rsp
+    lla s_info, info_struct
     lla s_ip, w_init_program
     ln a0, (s_ip)
     jr a0
@@ -27,7 +29,8 @@ func exit_main
     ln s_ip, (2 * NATIVE)(sp)
     ln s_rsp, (3 * NATIVE)(sp)
     ln s_rfp, (4 * NATIVE)(sp)
-    addi sp, sp, ALIGN(5 * NATIVE)
+    ln s_info, (5 * NATIVE)(sp)
+    addi sp, sp, ALIGN(6 * NATIVE)
     ret
 end exit_main
 
@@ -89,6 +92,38 @@ func do_call # Operand: list
     addi s_ip, s_ip, 2 * NATIVE
     enter_frame
     mv s_ip, a0
+    go
+end do_call
+
+func do_dyn_call # Operand: list
+    ln a0, (1 * NATIVE)(s_ip)
+    ln a1, o_payload(a0)
+    beqz a1, 10f
+
+    // Patch into do_call
+    lla a2, do_call
+    sn a2, (0 * NATIVE)(s_ip)
+    sn a1, (1 * NATIVE)(s_ip)
+
+    // If tail, patch into do_tail instead
+    ln a2, (2 * NATIVE)(s_ip)
+    lla a3, do_endlist
+    lla a4, do_tail
+    bne a2, a3, 1f
+    sn a4, (0 * NATIVE)(s_ip)
+1:
+
+    addi s_ip, s_ip, 2 * NATIVE
+    enter_frame
+    mv s_ip, a1
+    go
+
+10:
+    addi s_dsp, s_dsp, -1 * NATIVE
+    sn a0, (s_dsp)
+    addi s_ip, s_ip, 2 * NATIVE
+    enter_frame
+    lla s_ip, w_undef_dyn
     go
 end do_call
 
@@ -174,6 +209,12 @@ end \label
         .popsection
     .endm
 
+    .macro defspecial name, comp
+        mk_link
+        mk_name "\name"
+        nbyte \comp
+    .endm
+
     .macro list start
         nbyte do_lit + 1, \start\()f
         _startlist \start
@@ -195,6 +236,15 @@ end \label
         nbyte do_lit + 1, \val
     .endm
 
+    .macro _litzs str
+        .pushsection .rodata.str1.1, "aMS", @progbits, 1
+object litzs_\@
+        .string "\str"
+end litzs_\@
+        .popsection
+        _lit litzs_\@
+    .endm
+
     .macro _tail list
         nbyte do_tail + 1, w_\list
     .endm
@@ -207,6 +257,10 @@ end \label
 
 def w_nop, "nop", 0
 enddef w_nop
+
+defcode do_bkpt, "bkpt"
+    ebreak
+endcode do_bkpt
 
 defcode do_run, "run"
     ln a0, (s_dsp)
@@ -260,6 +314,12 @@ defcode do_dsp, "dsp"
     sn a0, (s_dsp)
     next
 endcode do_dsp
+
+defcode do_of_info, "=info"
+    addi s_dsp, s_dsp, -1 * NATIVE
+    sn s_info, (s_dsp)
+    next
+endcode do_of_info
 
 defcode do_strlen, "strlen"
     ln a0, (s_dsp)
@@ -393,34 +453,8 @@ defcode do_select, "select"
     next
 endcode do_select
 
-def w_alloca, "alloca"
-    _ swap ; _p prim_alloca ; _ swap
-    _p run // Not tailrun here
-enddef w_alloca
-
-def w_u_dump, "_dump" // ( p -- )
-    _ pdup ; _p eq
-    list 101
-        _ pdrop
-    endlist 101, 201, w_u_dump
-    list 101
-        _lit NATIVE ; _p sub
-        _ dup ; _p load ; _p print
-        _tail u_dump
-    endlist 101, 201, w_u_dump
-    _tail ifelse
-enddef w_u_dump
-
-def w_dump, "dump"
-    _lit '(' ; _p putchar
-    _lit ' ' ; _p putchar
-    _p dsp ; _lit data_stack_end ; _ u_dump
-    _lit ')' ; _p putchar
-    _lit '\n' ; _p putchar
-enddef w_dump
-
 def w_last_word, "last_word"
-    _lit last_word
+    _lit info_last ; _ info_load
 enddef w_last_word
 
 def w_dup, "dup"
@@ -458,6 +492,80 @@ def w_ifelse, "ifelse"
     _p select ; _p tailrun
 enddef w_ifelse
 
+def w_info_load, "info@"
+    _p of_info ; _p add ; _p load
+enddef w_info_load
+
+def w_info_store, "info!"
+    _p of_info ; _p add ; _p store
+enddef w_info_store
+
+def w_brk, "brk"
+    _lit info_brk ; _ info_load
+enddef w_brk
+
+def w_brk_store, "brk!"
+    _lit info_brk ; _ info_store
+enddef w_brk_store
+
+def w_brk_add_store, "brk+!"
+    _ brk ; _p add ; _ brk_store
+enddef w_brk_add_store
+
+def w_sbrk, "sbrk"
+    _ brk ; _ swap ; _ brk_add_store
+enddef w_sbrk
+
+def w_brk_copy, "brk_copy"
+    _p lcomma ; _p lcomma
+    _lload 0 ; _ sbrk
+    _ dup ; _lload 1 ; _lload 0 ; _p memcpy
+enddef w_brk_copy
+
+def w_zs_copy, "zs_copy"
+    _p lcomma ; _p lcomma
+    _lload 0 ; _lit 1 ; _p add ; _ sbrk
+    _ dup ; _lload 1 ; _lload 0 ; _p memcpy
+    _ dup ; _lload 0 ; _p add ; _lit 0 ; _ swap ; _p b_store
+enddef w_zs_copy
+
+def w_brk_align, "brk_align"
+    _ brk
+    _lit NATIVE - 1 ; _p add
+    _lit - NATIVE ; _p and
+    _ brk_store
+enddef w_brk_align
+
+def w_alloca, "alloca"
+    _ swap ; _p prim_alloca ; _ swap
+    _p run // Not tailrun here
+enddef w_alloca
+
+def w_error, "error"
+    _p bkpt // TODO
+enddef w_error
+
+def w_u_dump, "_dump" // ( p -- )
+    _ pdup ; _p eq
+    list 101
+        _ pdrop
+    endlist 101, 201, w_u_dump
+    list 101
+        _lit NATIVE ; _p sub
+        _ dup ; _p load ; _p print
+        _tail u_dump
+    endlist 101, 201, w_u_dump
+    _tail ifelse
+enddef w_u_dump
+
+def w_dump, "dump"
+    _lit '(' ; _p putchar
+    _lit ' ' ; _p putchar
+    _p dsp ; _lit data_stack_end ; _ u_dump
+    _lit ')' ; _p putchar
+    _lit '\n' ; _p putchar
+enddef w_dump
+
 def w_s_dot, "s."
     _ dup
     list 101
@@ -471,6 +579,10 @@ def w_s_dot, "s."
     endlist 101, 201, w_s_dot_end
     _tail ifelse
 enddef w_s_dot
+
+def w_zs_dot, "zs."
+    _ dup ; _p strlen ; _ s_dot
+enddef w_zs_dot
 
 def w_lx_show, "lx.show"
     _p lcomma
@@ -514,6 +626,14 @@ def w_lx_append, "lx.append"
     _p store
 enddef w_lx_append
 
+def w_lx_word, "lx.word"
+    _p lcomma
+    _lload 0 ; _lit lx_ipos ; _p add ; _p load
+    _ dup ; _ skip_word
+    _ dup ; _lload 0 ; _lit lx_ipos ; _p add ; _p store
+    _ over ; _p sub
+enddef w_lx_word
+
 def w_comp_call, "_comp_call"
     _ over ; _lit do_call + 1 ; _ lx_append
     _lit o_payload ; _p add ; _p load ; _tail lx_append
@@ -522,6 +642,79 @@ enddef w_comp_call
 def w_comp_prim, "_comp_prim"
     _lit o_payload ; _p add ; _p load ; _tail lx_append
 enddef w_comp_prim
+
+def w_comp_dyn, "_comp_dyn"
+    _ over ; _lit do_dyn_call + 1; _ lx_append
+    _ lx_append
+enddef w_comp_dyn
+
+def w_undef_dyn, "_undef_dyn"
+    _litzs "Word " ; _ zs_dot
+    _lit o_name ; _p add ; _p load ; _ zs_dot
+    _litzs " called before definition" ; _ zs_dot
+    _lit '\n' ; _p putchar
+    _ error
+enddef w_undef_dyn
+
+def w_add_entry, "add_entry"
+    _ last_word ; _ over ; _lit o_link ; _p add ; _p store
+    _lit info_last ; _ info_store
+enddef w_add_entry
+
+def w_comp_fn, "_comp_fn"
+    _ drop ; _ dup ; _ lx_word
+    _ zs_copy
+    _ brk_align ; _lit 4 * NATIVE ; _ sbrk ; _p lcomma
+    _lload 0 ; _lit o_name ; _p add ; _p store
+    _lit w_comp_dyn ; _lload 0 ; _lit o_comp ; _p add ; _p store
+    _lit 0 ; _lload 0 ; _lit o_payload ; _p add ; _p store
+    _lload 0 ; _ add_entry
+
+    _ dup ; _lit do_lit + 1 ; _ lx_append
+    _lload 0 ; _ lx_append
+enddef w_comp_fn
+
+defspecial "fn:", w_comp_fn
+
+def w_comp_open_bracket, "_comp_open_bracket"
+    _ drop ; _p lcomma
+    _lload 0 ; _lit lx_ppos ; _p add ; _p load
+    _lload 0 ; _lit lx_listptr ; _p add ; _p load
+    _lload 0 ; _ swap ; _ lx_append
+    _lload 0 ; _lit lx_listptr ; _p add ; _p store
+enddef w_comp_open_bracket
+
+defspecial "[", w_comp_open_bracket
+
+def w_comp_close_bracket, "_comp_close_bracket"
+    _ drop ; _p lcomma
+    _lload 0 ; _lit do_endlist ; _ lx_append
+    _lload 0 ; _lit lx_listptr ; _p add ; _p load
+    _ dup ; _p load ; _lload 0 ; _lit lx_listptr ; _p add ; _p store
+    _lload 0 ; _lit lx_ppos ; _p add ; _p load
+    // ( begin end )
+    _ over ; _lload 0 ; _lit lx_ppos ; _p add ; _p store
+    _ swap ; _lit NATIVE ; _p add ; _ swap
+    _ brk_align
+    _ over ; _p sub ; _ brk_copy
+    _lload 0 ; _lit do_lit + 1 ; _ lx_append
+    _lload 0 ; _ swap ; _ lx_append
+enddef w_comp_close_bracket
+
+defspecial "]", w_comp_close_bracket
+
+def w_define, "define"
+    _ swap
+    _ dup ; _lit o_comp ; _p add ; _p load
+    _lit w_comp_dyn ; _p eq
+    list 101
+        _lit o_payload ; _p add ; _p store
+    endlist 101, 201, w_define_end
+    list 101
+        _ error
+    endlist 101, 201, w_define_end
+    _ ifelse
+enddef w_define
 
 def w_is_space, "?space"
     _lit 0
@@ -605,7 +798,31 @@ def w_skip_word, "skip_word"
     _tail ifelse
 enddef w_skip_word
 
+def w_lx_run, "lx.run"
+    _p lcomma
+    _lload 0 ; _lit do_endlist ; _ lx_append
+    _lload 0 ; _lit 0 ; _ lx_append
+    _lload 0 ; _lit 0 ; _ lx_append
+    _lload 0 ; _lit lx_pbuf ; _p add ; _p load ; _p run
+    _lload 0 ; _lit lx_pbuf ; _p add ; _p load
+    _lload 0 ; _lit lx_ppos ; _p add ; _p store
+enddef w_lx_run
+
+def w_lx_check_run, "lx.check_run"
+    _ dup ; _lit lx_listptr ; _p add ; _p load
+    list 101
+        _ drop
+    endlist 101, 201, w_lx_check_run_end
+    list 101
+        _p lcomma
+        _ lx_run
+        _lload 0
+    endlist 101, 201, w_lx_check_run_end
+    _tail ifelse
+enddef w_lx_check_run
+
 def w_lx_parse, "lx.parse"
+    _ dup ; _ lx_show
     _ dup ; _lit lx_ipos ; _p add ; _p load
     _ skip_space
     _ dup ; _p b_load_u ; _lit 0 ; _p eq
@@ -629,27 +846,20 @@ def w_lx_parse, "lx.parse"
         list 102
             _ over ; _ swap
             _ dup ; _lit o_comp ; _p add ; _p load ; _p run
+            _ dup ; _ lx_check_run
             _tail lx_parse
         endlist 102, 202, 201f
         list 102
             _ drop
+            _litzs "Word not found:" ; _ zs_dot
+            _lit '\n' ; _p putchar
             _ lx_show
-            _p exit // FIXME: Error handling
+            _ error
         endlist 102, 202, 201f
         _tail ifelse
     endlist 101, 201, w_lx_parse_end
     _tail ifelse
 enddef w_lx_parse
-
-def w_lx_run, "lx.run"
-    _p lcomma
-    _lload 0 ; _lit do_endlist ; _ lx_append
-    _lload 0 ; _lit 0 ; _ lx_append
-    _lload 0 ; _lit 0 ; _ lx_append
-    _lload 0 ; _lit lx_pbuf ; _p add ; _p load ; _p run
-    _lload 0 ; _lit lx_pbuf ; _p add ; _p load
-    _lload 0 ; _lit lx_ppos ; _p add ; _p store
-enddef w_lx_run
 
 def w_init_program, "_init_program"
     _lit 8 * NATIVE // FIXME: Parser struct size
@@ -659,7 +869,6 @@ def w_init_program, "_init_program"
         _lload 0 ; _lit something ; _ dup ; _p strlen ; _ lx_input_store
         _lit 0 ; _lload 0 ; _lit lx_listptr ; _p add ; _p store
         _lload 0 ; _ lx_parse
-        _lload 0 ; _ lx_run
     endlist 101, 201, w_init_program_end
     _ alloca
     _p exit
@@ -668,10 +877,15 @@ enddef w_init_program
     .set last_word, 1011b
 
     .section .data
+object info_struct
+    nbyte data_space
+    nbyte data_space_end
+    nbyte last_word
+end info_struct
 
     .section .rodata
 object something
-    .string "dsp dsp dump + print dump"
+    .string "dsp dump fn:test [ dsp print test ] define test"
 end something
 
     .section .bss
@@ -694,4 +908,5 @@ end return_stack
 
 object data_space
     .zero 128 * 4096
+data_space_end:
 end data_space
