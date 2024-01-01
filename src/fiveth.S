@@ -793,6 +793,17 @@ def w_skip_space, "skip_space"
     _tail ifelse
 enddef w_skip_space
 
+def w_s_eq_zs, "s=zs" // ( p:name n:name zs:entry_name -- bool )
+    _ pdup ; _p strlen ; _p eq
+    list 101
+        _ swap ; _p memcmp ; _p eqz
+    endlist 101, 201, w_s_eq_zs_end
+    list 101
+        _ pdrop ; _ drop ; _lit 0
+    endlist 101, 201, w_s_eq_zs_end
+    _tail ifelse
+enddef w_s_eq_zs
+
 def w_u_lookup, "_lookup" // ( p:name n:name p:entry -- p:entry )
     _ dup ; _p eqz
     list 101
@@ -800,28 +811,17 @@ def w_u_lookup, "_lookup" // ( p:name n:name p:entry -- p:entry )
         _ nip ; _ nip
     endlist 101, 201, w_u_lookup_end
     list 101
-        _ pdup ; _lit o_name ; _p add ; _p load ; _p strlen ; _p eq
-        list 102
-            // Name length matches
-            _p lcomma ; _p lcomma ; _p lcomma
-            _lload 2 ; _lload 1 ; _lload 0
-            _lload 2
-            _lload 0 ; _lit o_name ; _p add ; _p load
-            _lload 1 ; _p memcmp ; _p eqz
-            list 103
-                // Name matches
-                _ nip ; _ nip
-            endlist 103, 203, 202f
-            list 103
-                // Not a match, try next
-                _lit o_link ; _p add ; _p load ; _tail u_lookup
-            endlist 103, 203, 202f
-            _tail ifelse
-        endlist 102, 202, 201f
-        list 102
+        _p lcomma ; _p lcomma ; _p lcomma
+        _lload 2 ; _lload 1 ; _lload 0
+        _lload 2 ; _lload 1 ; _lload 0 ; _lit o_name ; _p add ; _p load ; _ s_eq_zs
+        list 103
+            // Name matches
+            _ nip ; _ nip
+        endlist 103, 203, 202f
+        list 103
             // Not a match, try next
             _lit o_link ; _p add ; _p load ; _tail u_lookup
-        endlist 102, 202, 201f
+        endlist 103, 203, 202f
         _tail ifelse
     endlist 101, 201, w_u_lookup_end
     _tail ifelse
@@ -931,6 +931,14 @@ def w_init_program, "_init_program"
     _p exit
 enddef w_init_program
 
+def w_one, "one"
+    _lit 1
+enddef w_one
+
+def w_ten, "ten"
+    _lit 10
+enddef w_ten
+
     .set last_word, 1011b
 
     .section .data
@@ -942,7 +950,7 @@ end info_struct
 
     .section .rodata
 object something
-    .string "fn:test [ dsp print test ] define [ test test ] [ run run ] [ ifelse ifelse ] [ ] dump error"
+    .string "fn:loop [ dup [ dup print one - loop ] [ drop ] ifelse ] define ten loop"
 end something
 
     .section .bss
