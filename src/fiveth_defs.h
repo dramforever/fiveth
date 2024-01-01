@@ -59,6 +59,7 @@
 #define lx_pbuf (4 * NATIVE)
 #define lx_pend (5 * NATIVE)
 #define lx_listptr (6 * NATIVE)
+#define lx_last (7 * NATIVE)
 
 #define info_brk (0 * NATIVE)
 #define info_brk_lim (1 * NATIVE)

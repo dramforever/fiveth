@@ -192,6 +192,7 @@ end str_\@
 
     .macro enddef label
         _endlist \label, \label\()_end, \label\()_end, 0
+        .size \label, \label\()_end - \label
     .endm
 
     .macro defcode label, name
@@ -633,16 +634,50 @@ def w_lx_word, "lx.word"
     _ over ; _p sub
 enddef w_lx_word
 
+def w_lx_mark, "lx.mark"
+    _ dup ; _lit lx_ppos ; _p add ; _p load
+    _ swap ; _lit lx_last ; _p add ; _p store
+enddef w_lx_mark
+
+def w_lx_tail, "lx.tail"
+    _lit lx_last ; _p add ; _p load
+    _ dup ; _p eqz
+    list 101
+        _ drop
+    endlist 101, 201, w_lx_tail_end
+    list 101
+        _ dup ; _p load ; _lit do_call + 1 ; _p eq
+        list 102
+            _ dup ; _lit do_tail + 1 ; _ swap ; _p store
+        endlist 102, 202, 201f
+        list 102
+        endlist 102, 202, 201f
+        _ ifelse
+        _ dup ; _p load ; _lit do_run ; _p eq
+        list 102
+            _ dup ; _lit do_tailrun ; _ swap ; _p store
+        endlist 102, 202, 201f
+        list 102
+        endlist 102, 202, 201f
+        _ ifelse
+        _ drop
+    endlist 101, 201, w_lx_tail_end
+    _tail ifelse
+enddef w_lx_tail
+
 def w_comp_call, "_comp_call"
+    _ over ; _ lx_mark
     _ over ; _lit do_call + 1 ; _ lx_append
     _lit o_payload ; _p add ; _p load ; _tail lx_append
 enddef w_comp_call
 
 def w_comp_prim, "_comp_prim"
+    _ over ; _ lx_mark
     _lit o_payload ; _p add ; _p load ; _tail lx_append
 enddef w_comp_prim
 
 def w_comp_dyn, "_comp_dyn"
+    _ over ; _ lx_mark
     _ over ; _lit do_dyn_call + 1; _ lx_append
     _ lx_append
 enddef w_comp_dyn
@@ -669,6 +704,7 @@ def w_comp_fn, "_comp_fn"
     _lit 0 ; _lload 0 ; _lit o_payload ; _p add ; _p store
     _lload 0 ; _ add_entry
 
+    _ dup ; _ lx_mark
     _ dup ; _lit do_lit + 1 ; _ lx_append
     _lload 0 ; _ lx_append
 enddef w_comp_fn
@@ -677,6 +713,7 @@ defspecial "fn:", w_comp_fn
 
 def w_comp_open_bracket, "_comp_open_bracket"
     _ drop ; _p lcomma
+    _lit 0 ; _lload 0 ; _lit lx_last ; _p add ; _p store
     _lload 0 ; _lit lx_ppos ; _p add ; _p load
     _lload 0 ; _lit lx_listptr ; _p add ; _p load
     _lload 0 ; _ swap ; _ lx_append
@@ -688,7 +725,6 @@ defspecial "[", w_comp_open_bracket
 def w_comp_close_bracket, "_comp_close_bracket"
     _ drop
     _ dup ; _ lx_is_top
-    _ dump
     list 101
         _litzs "Unmatched closing bracket" ; _ zs_dot
         _lit '\n' ; _p putchar
@@ -697,7 +733,10 @@ def w_comp_close_bracket, "_comp_close_bracket"
     endlist 101, 201, w_comp_close_bracket_end
     list 101
         _p lcomma
+        _lload 0 ; _ lx_tail
         _lload 0 ; _lit do_endlist ; _ lx_append
+        _lload 0 ; _lit 0 ; _ lx_append
+        _lload 0 ; _lit 0 ; _ lx_append // TODO backtrace information
         _lload 0 ; _lit lx_listptr ; _p add ; _p load
         _ dup ; _p load ; _lload 0 ; _lit lx_listptr ; _p add ; _p store
         _lload 0 ; _lit lx_ppos ; _p add ; _p load
@@ -706,6 +745,7 @@ def w_comp_close_bracket, "_comp_close_bracket"
         _ swap ; _lit NATIVE ; _p add ; _ swap
         _ brk_align
         _ over ; _p sub ; _ brk_copy
+        _lload 0 ; _ lx_mark
         _lload 0 ; _lit do_lit + 1 ; _ lx_append
         _lload 0 ; _ swap ; _ lx_append
     endlist 101, 201, w_comp_close_bracket_end
@@ -719,7 +759,9 @@ def w_define, "define"
     _ dup ; _lit o_comp ; _p add ; _p load
     _lit w_comp_dyn ; _p eq
     list 101
-        _lit o_payload ; _p add ; _p store
+        _p lcomma
+        _lload 0 ; _lit o_payload ; _p add ; _p store
+        _lit w_comp_call ; _lload 0 ; _lit o_comp ; _p add ; _p store
     endlist 101, 201, w_define_end
     list 101
         _ error
@@ -837,7 +879,6 @@ def w_lx_check_run, "lx.check_run"
 enddef w_lx_check_run
 
 def w_lx_parse, "lx.parse"
-    _ dup ; _ lx_show
     _ dup ; _lit lx_ipos ; _p add ; _p load
     _ skip_space
     _ dup ; _p b_load_u ; _lit 0 ; _p eq
@@ -861,6 +902,7 @@ def w_lx_parse, "lx.parse"
         list 102
             _ over ; _ swap
             _ dup ; _lit o_comp ; _p add ; _p load ; _p run
+            _ dup ; _ lx_show
             _ dup ; _ lx_check_run
             _tail lx_parse
         endlist 102, 202, 201f
@@ -883,6 +925,7 @@ def w_init_program, "_init_program"
         _lload 0 ; _lit parse_buf ; _lit (parse_buf_end - parse_buf) ; _ lx_buf_store
         _lload 0 ; _lit something ; _ dup ; _p strlen ; _ lx_input_store
         _lit 0 ; _lload 0 ; _lit lx_listptr ; _p add ; _p store
+        _lit 0 ; _lload 0 ; _lit lx_last ; _p add ; _p store
         _lload 0 ; _ lx_parse
     endlist 101, 201, w_init_program_end
     _ alloca
@@ -900,7 +943,7 @@ end info_struct
 
     .section .rodata
 object something
-    .string "dsp dump fn:test ] [ dsp print test ] define test"
+    .string "fn:test [ dsp print test ] define [ test test ] [ run run ] [ ifelse ifelse ] [ ] dump error"
 end something
 
     .section .bss
