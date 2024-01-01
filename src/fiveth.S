@@ -619,11 +619,20 @@ def w_lx_buf_store, "lx.buf!"
     _lload 2 ; _lit lx_pend ; _p add ; _p store
 enddef w_lx_buf_store
 
-def w_lx_append, "lx.append"
+def w_lx_mark, "lx.mark"
+    _ dup ; _lit lx_ppos ; _p add ; _p load
+    _ swap ; _lit lx_last ; _p add ; _p store
+enddef w_lx_mark
+
+def w_lx_append_imm, "lx.append_imm"
     _ swap ; _p lcomma
     _lload 0 ; _lit lx_ppos ; _p add ; _p load
     _ dup ; _lit NATIVE ; _p add ; _lload 0 ; _lit lx_ppos ; _p add ; _p store
     _p store
+enddef w_lx_append_imm
+
+def w_lx_append, "lx.append"
+    _ over ; _ lx_mark ; _ lx_append_imm
 enddef w_lx_append
 
 def w_lx_word, "lx.word"
@@ -633,11 +642,6 @@ def w_lx_word, "lx.word"
     _ dup ; _lload 0 ; _lit lx_ipos ; _p add ; _p store
     _ over ; _p sub
 enddef w_lx_word
-
-def w_lx_mark, "lx.mark"
-    _ dup ; _lit lx_ppos ; _p add ; _p load
-    _ swap ; _lit lx_last ; _p add ; _p store
-enddef w_lx_mark
 
 def w_lx_tail, "lx.tail"
     _lit lx_last ; _p add ; _p load
@@ -666,20 +670,17 @@ def w_lx_tail, "lx.tail"
 enddef w_lx_tail
 
 def w_comp_call, "_comp_call"
-    _ over ; _ lx_mark
     _ over ; _lit do_call + 1 ; _ lx_append
-    _lit o_payload ; _p add ; _p load ; _tail lx_append
+    _lit o_payload ; _p add ; _p load ; _tail lx_append_imm
 enddef w_comp_call
 
 def w_comp_prim, "_comp_prim"
-    _ over ; _ lx_mark
     _lit o_payload ; _p add ; _p load ; _tail lx_append
 enddef w_comp_prim
 
 def w_comp_dyn, "_comp_dyn"
-    _ over ; _ lx_mark
     _ over ; _lit do_dyn_call + 1; _ lx_append
-    _ lx_append
+    _ lx_append_imm
 enddef w_comp_dyn
 
 def w_undef_dyn, "_undef_dyn"
@@ -704,9 +705,8 @@ def w_comp_fn, "_comp_fn"
     _lit 0 ; _lload 0 ; _lit o_payload ; _p add ; _p store
     _lload 0 ; _ add_entry
 
-    _ dup ; _ lx_mark
     _ dup ; _lit do_lit + 1 ; _ lx_append
-    _lload 0 ; _ lx_append
+    _lload 0 ; _ lx_append_imm
 enddef w_comp_fn
 
 defspecial "fn:", w_comp_fn
@@ -716,7 +716,7 @@ def w_comp_open_bracket, "_comp_open_bracket"
     _lit 0 ; _lload 0 ; _lit lx_last ; _p add ; _p store
     _lload 0 ; _lit lx_ppos ; _p add ; _p load
     _lload 0 ; _lit lx_listptr ; _p add ; _p load
-    _lload 0 ; _ swap ; _ lx_append
+    _lload 0 ; _ swap ; _ lx_append_imm
     _lload 0 ; _lit lx_listptr ; _p add ; _p store
 enddef w_comp_open_bracket
 
@@ -735,8 +735,8 @@ def w_comp_close_bracket, "_comp_close_bracket"
         _p lcomma
         _lload 0 ; _ lx_tail
         _lload 0 ; _lit do_endlist ; _ lx_append
-        _lload 0 ; _lit 0 ; _ lx_append
-        _lload 0 ; _lit 0 ; _ lx_append // TODO backtrace information
+        _lload 0 ; _lit 0 ; _ lx_append_imm
+        _lload 0 ; _lit 0 ; _ lx_append_imm // TODO backtrace information
         _lload 0 ; _lit lx_listptr ; _p add ; _p load
         _ dup ; _p load ; _lload 0 ; _lit lx_listptr ; _p add ; _p store
         _lload 0 ; _lit lx_ppos ; _p add ; _p load
@@ -745,9 +745,8 @@ def w_comp_close_bracket, "_comp_close_bracket"
         _ swap ; _lit NATIVE ; _p add ; _ swap
         _ brk_align
         _ over ; _p sub ; _ brk_copy
-        _lload 0 ; _ lx_mark
         _lload 0 ; _lit do_lit + 1 ; _ lx_append
-        _lload 0 ; _ swap ; _ lx_append
+        _lload 0 ; _ swap ; _ lx_append_imm
     endlist 101, 201, w_comp_close_bracket_end
     _tail ifelse
 enddef w_comp_close_bracket
@@ -854,8 +853,8 @@ enddef w_skip_word
 def w_lx_run, "lx.run"
     _p lcomma
     _lload 0 ; _lit do_endlist ; _ lx_append
-    _lload 0 ; _lit 0 ; _ lx_append
-    _lload 0 ; _lit 0 ; _ lx_append
+    _lload 0 ; _lit 0 ; _ lx_append_imm
+    _lload 0 ; _lit 0 ; _ lx_append_imm
     _lload 0 ; _lit lx_pbuf ; _p add ; _p load ; _p run
     _lload 0 ; _lit lx_pbuf ; _p add ; _p load
     _lload 0 ; _lit lx_ppos ; _p add ; _p store
