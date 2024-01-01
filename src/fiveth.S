@@ -10,7 +10,7 @@ func main
     sn s_ip, (2 * NATIVE)(sp)
     sn s_rsp, (3 * NATIVE)(sp)
     sn s_rfp, (4 * NATIVE)(sp)
-    sn s_info, (4 * NATIVE)(sp)
+    sn s_info, (5 * NATIVE)(sp)
 
     lla s_dsp, data_stack_end
     lla s_rsp, return_stack_end
