@@ -825,14 +825,14 @@ def w_u_lookup, "_lookup" // ( p:name n:name p:entry -- p:entry )
         _p lcomma ; _p lcomma ; _p lcomma
         _lload 2 ; _lload 1 ; _lload 0
         _lload 2 ; _lload 1 ; _lload 0 ; _lit o_name ; _p add ; _p load ; _ s_eq_zs
-        list 103
+        list 102
             // Name matches
             _ nip ; _ nip
-        endlist 103, 203, 202f
-        list 103
+        endlist 102, 202, 201f
+        list 102
             // Not a match, try next
             _lit o_link ; _p add ; _p load ; _tail u_lookup
-        endlist 103, 203, 202f
+        endlist 102, 202, 201f
         _tail ifelse
     endlist 101, 201, w_u_lookup_end
     _tail ifelse
