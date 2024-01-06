@@ -356,6 +356,8 @@ defcode do_print, "print"
     la a0, 1b
     ln a1, (0 * NATIVE)(s_dsp)
     call printf
+    ld a0, stdout
+    call fflush
     addi s_dsp, s_dsp, 1 * NATIVE
     next
 endcode do_print
@@ -363,6 +365,8 @@ endcode do_print
 defcode do_puts, "puts"
     ln a0, (s_dsp)
     call puts
+    ld a0, stdout
+    call fflush
     addi s_dsp, s_dsp, 1 * NATIVE
     next
 endcode do_puts
@@ -370,6 +374,8 @@ endcode do_puts
 defcode do_putchar, "putchar"
     ln a0, (s_dsp)
     call putchar
+    ld a0, stdout
+    call fflush
     addi s_dsp, s_dsp, 1 * NATIVE
     next
 endcode do_putchar
@@ -424,6 +430,16 @@ endcode \label
 
     binary do_eq, "=", "xor a0, a0, a1 ; seqz a0, a0"
     binary do_ne, "!=", "xor a0, a0, a1 ; snez a0, a0"
+
+    binary do_lt, "<", "slt a0, a0, a1"
+    binary do_gt, ">", "sgt a0, a0, a1"
+    binary do_ltu, "<u", "sltu a0, a0, a1"
+    binary do_gtu, ">u", "sgtu a0, a0, a1"
+
+    binary do_le, "<=", "sgt a0, a0, a1 ; xori a0, a0, 1"
+    binary do_ge, ">=", "slt a0, a0, a1 ; xori a0, a0, 1"
+    binary do_leu, "<=u", "sgtu a0, a0, a1 ; xori a0, a0, 1"
+    binary do_geu, ">=u", "sltu a0, a0, a1 ; xori a0, a0, 1"
 
     .macro store_like label, name, insn
 defcode \label, "\name"
@@ -884,7 +900,20 @@ def w_lx_check_run, "lx.check_run"
     _tail ifelse
 enddef w_lx_check_run
 
+def w_lx_check_buf, "lx.check_buf"
+    _ lx_ppos_load ; _ lx_pend_load ; _lit 4 * NATIVE ; _p sub ; _p geu
+    list 101
+        _litzs "Out of parse buffer" ; _ zs_dot
+        _lit '\n' ; _p putchar
+        _ error
+    endlist 101, 201, w_lx_check_buf_end
+    list 101
+    endlist 101, 201, w_lx_check_buf_end
+    _tail ifelse
+enddef w_lx_check_buf
+
 def w_lx_parse, "lx.parse"
+    _ lx_check_buf
     _ lx_ipos_load
     _ skip_space
     _ dup ; _p b_load_u ; _lit 0 ; _p eq
@@ -918,7 +947,8 @@ def w_lx_parse, "lx.parse"
 enddef w_lx_parse
 
 def w_init_program, "_init_program"
-    _lit parse_buf ; _lit (parse_buf_end - parse_buf) ; _ lx_buf_store
+    _ brk_align
+    _lit 128 ; _ dup ; _ sbrk ; _ swap ; _ lx_buf_store
     _lit something ; _ dup ; _p strlen ; _ lx_input_store
     _lit 0 ; _ lx_listptr_store
     _lit 0 ; _ lx_last_store
@@ -952,11 +982,6 @@ end something
 
     .section .bss
     .p2align LGNATIVE
-
-object parse_buf
-    .zero 4096
-parse_buf_end:
-end parse_buf
 
 object data_stack
     .zero 4096
