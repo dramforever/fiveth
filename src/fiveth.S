@@ -356,7 +356,7 @@ defcode do_print, "print"
     la a0, 1b
     ln a1, (0 * NATIVE)(s_dsp)
     call printf
-    ld a0, stdout
+    ln a0, stdout
     call fflush
     addi s_dsp, s_dsp, 1 * NATIVE
     next
@@ -365,7 +365,7 @@ endcode do_print
 defcode do_puts, "puts"
     ln a0, (s_dsp)
     call puts
-    ld a0, stdout
+    ln a0, stdout
     call fflush
     addi s_dsp, s_dsp, 1 * NATIVE
     next
@@ -374,7 +374,7 @@ endcode do_puts
 defcode do_putchar, "putchar"
     ln a0, (s_dsp)
     call putchar
-    ld a0, stdout
+    ln a0, stdout
     call fflush
     addi s_dsp, s_dsp, 1 * NATIVE
     next
@@ -948,7 +948,7 @@ enddef w_lx_parse
 
 def w_init_program, "_init_program"
     _ brk_align
-    _lit 128 ; _ dup ; _ sbrk ; _ swap ; _ lx_buf_store
+    _lit 4096 ; _ dup ; _ sbrk ; _ swap ; _ lx_buf_store
     _lit something ; _ dup ; _p strlen ; _ lx_input_store
     _lit 0 ; _ lx_listptr_store
     _lit 0 ; _ lx_last_store
