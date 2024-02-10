@@ -362,15 +362,6 @@ defcode do_print, "print"
     next
 endcode do_print
 
-defcode do_puts, "puts"
-    ln a0, (s_dsp)
-    call puts
-    ln a0, stdout
-    call fflush
-    addi s_dsp, s_dsp, 1 * NATIVE
-    next
-endcode do_puts
-
 defcode do_putchar, "putchar"
     ln a0, (s_dsp)
     call putchar
@@ -379,6 +370,13 @@ defcode do_putchar, "putchar"
     addi s_dsp, s_dsp, 1 * NATIVE
     next
 endcode do_putchar
+
+defcode do_getchar, "getchar"
+    call getchar
+    addi s_dsp, s_dsp, -1 * NATIVE
+    sn a0, (s_dsp)
+    next
+endcode do_getchar
 
     .macro unary label, name, insn
 defcode \label, "\name"
@@ -404,6 +402,10 @@ endcode \label
     unary do_not, "not", "not a0, a0"
     unary do_eqz, "=0", "seqz a0, a0"
     unary do_nez, "!=0", "snez a0, a0"
+    unary do_ltz, "<0", "sltz a0, a0"
+    unary do_gtz, ">0", "sgtz a0, a0"
+    unary do_lez, "<=0", "sgtz a0, a0 ; xori a0, a0, 1"
+    unary do_gez, ">=0", "sltz a0, a0 ; xori a0, a0, 1"
 
     // (Can't use ln in strings)
 #if __riscv_xlen == 32
@@ -626,10 +628,12 @@ def w_lx_show, "lx.show"
     _lit '<' ; _p putchar
     _lit '<' ; _p putchar
     _lit '<' ; _p putchar
+    _lit ' ' ; _p putchar
 
     _ lx_ipos_load ; _ lx_iend_load
     _ over ; _p sub ; _ s_dot
 
+    _lit '\r' ; _p putchar
     _lit '\n' ; _p putchar
 enddef w_lx_show
 
@@ -659,10 +663,39 @@ def w_lx_append, "lx.append"
     _ lx_mark ; _ lx_append_imm
 enddef w_lx_append
 
+def w_lx_skip_word, "lx.skip_word"
+    _ lx_ipos_load ; _ lx_iend_load ; _p eq
+    list 101
+        // End of input
+    endlist 101, 201, w_lx_skip_word_end
+    list 101
+        _ lx_ipos_load ; _p b_load_u
+        _ dup ; _ is_space
+        list 102
+            // Found space
+            _ drop
+        endlist 102, 202, 201f
+        list 102
+            _ lx_ipos_load ; _lit 1 ; _p add ; _ lx_ipos_store
+            _ is_sigil
+            list 103
+                // Found sigil
+            endlist 103, 203, 202f
+            list 103
+                // Found normal word bytte
+                _tail lx_skip_word
+            endlist 103, 203, 202f
+            _tail ifelse
+        endlist 102, 202, 201f
+        _tail ifelse
+    endlist 101, 201, w_lx_skip_word_end
+    _tail ifelse
+enddef w_lx_skip_word
+
 def w_lx_word, "lx.word"
     _ lx_ipos_load
-    _ dup ; _ skip_word
-    _ dup ; _ lx_ipos_store
+    _ lx_skip_word
+    _ lx_ipos_load
     _ over ; _p sub
 enddef w_lx_word
 
@@ -809,16 +842,24 @@ def w_is_sigil, "?sigil"
     _ nip
 enddef w_is_sigil
 
-def w_skip_space, "skip_space"
-    _ dup ; _p b_load_u ; _ is_space
+def w_lx_skip_space, "lx.skip_space"
+    _ lx_ipos_load ; _ lx_iend_load ; _p eq
     list 101
-        _lit 1 ; _p add ; _tail skip_space
-    endlist 101, 201, w_skip_space_end
+        // End of input
+    endlist 101, 201, w_lx_skip_space_end
     list 101
-        // Done
-    endlist 101, 201, w_skip_space_end
+        _ lx_ipos_load ; _p b_load_u ; _ is_space
+        list 102
+            _ lx_ipos_load ; _lit 1 ; _p add ; _ lx_ipos_store
+            _tail lx_skip_space
+        endlist 102, 202, 201f
+        list 102
+            // Found non-space
+        endlist 102, 202, 201f
+        _tail ifelse
+    endlist 101, 201, w_lx_skip_space_end
     _tail ifelse
-enddef w_skip_space
+enddef w_lx_skip_space
 
 def w_s_eq_zs, "s=zs" // ( p:name n:name zs:entry_name -- bool )
     _ pdup ; _p strlen ; _p eq
@@ -858,25 +899,6 @@ def w_lookup, "lookup"
     _ last_word ; _tail u_lookup
 enddef w_lookup
 
-def w_skip_word, "skip_word"
-    _ dup ; _p b_load_u
-    _ dup ; _ is_space ; _ swap ; _p eqz ; _p or
-    list 101
-    endlist 101, 201, w_skip_word_end
-    list 101
-        _ dup ; _p b_load_u
-        _ swap ; _lit 1 ; _p add ; _ swap
-        _ is_sigil
-        list 102
-        endlist 102, 202, 201f
-        list 102
-            _tail skip_word
-        endlist 102, 202, 201f
-        _tail ifelse
-    endlist 101, 201, w_skip_word_end
-    _tail ifelse
-enddef w_skip_word
-
 def w_lx_run, "lx.run"
     _lit do_endlist ; _ lx_append
     _lit 0 ; _ lx_append_imm
@@ -914,22 +936,18 @@ enddef w_lx_check_buf
 
 def w_lx_parse, "lx.parse"
     _ lx_check_buf
-    _ lx_ipos_load
-    _ skip_space
-    _ dup ; _p b_load_u ; _lit 0 ; _p eq
+    _ lx_skip_space
+    _ lx_ipos_load ; _ lx_iend_load ; _p eq
     list 101
-        _ drop
+        // End of input
     endlist 101, 201, w_lx_parse_end
     list 101
-        _ dup ; _ skip_word
-        _ over ; _p sub
-
+        _ lx_word
         // ( p:word n:word )
         _ pdup ; _p add ; _ lx_ipos_store
         _ lookup
         _ dup
         list 102
-            _ lx_show
             _ dup ; _lit o_comp ; _p add ; _p load ; _p run
             _ lx_check_run
             _tail lx_parse
@@ -949,18 +967,22 @@ enddef w_lx_parse
 def w_init_program, "_init_program"
     _ brk_align
     _lit 4096 ; _ dup ; _ sbrk ; _ swap ; _ lx_buf_store
-    _lit something ; _ dup ; _p strlen ; _ lx_input_store
+    _lit something ; _lit something_end ; _ over ; _p sub ; _ lx_input_store
     _lit 0 ; _ lx_listptr_store
     _lit 0 ; _ lx_last_store
     _ lx_parse
     _p exit
 enddef w_init_program
 
-def w_one, "one"
+def w_one, "1"
     _lit 1
 enddef w_one
 
-def w_ten, "ten"
+def w_four, "4"
+    _lit 4
+enddef w_four
+
+def w_ten, "10"
     _lit 10
 enddef w_ten
 
@@ -977,7 +999,9 @@ end info_struct
 
     .section .rodata
 object something
-    .string "dump fn:loop [ dup [ dup print one - loop ] [ drop ] ifelse ] define ten loop"
+    .ascii "fn:loop [ getchar dup <0 [ drop ] [ putchar loop ] ifelse ] define loop"
+something_end:
+    .ascii "extra garbage"
 end something
 
     .section .bss
