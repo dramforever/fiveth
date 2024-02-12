@@ -1,0 +1,12 @@
+fn:loop [
+    getchar
+    dup <0 [
+        drop
+    ] [
+        putchar loop
+    ] ifelse
+] define
+
+fn:foo [] define
+
+loop

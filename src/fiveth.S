@@ -67,6 +67,22 @@ func strlen
     ret
 end strlen
 
+    // void *memchr(const void *s, int c, size_t n);
+func memchr
+    add a2, a2, a0
+1:
+    beq a0, a2, 10f // Not found
+    lbu a5, (a0)
+    beq a5, a1, 11f // Found
+    addi a0, a0, 1
+    j 1b
+
+10:
+    li a0, 0
+11:
+    ret
+end memchr
+
     .macro go
         ln a0, (s_ip)
         jr a0
@@ -338,6 +354,16 @@ defcode do_memcmp, "memcmp"
     next
 endcode do_memcmp
 
+defcode do_memchr, "memchr"
+    ln a0, (2 * NATIVE)(s_dsp)
+    ln a2, (1 * NATIVE)(s_dsp)
+    ln a1, (0 * NATIVE)(s_dsp)
+    call memchr
+    addi s_dsp, s_dsp, 2 * NATIVE
+    sn a0, (s_dsp)
+    next
+endcode do_memchr
+
 defcode do_memcpy, "memcpy"
     ln a0, (2 * NATIVE)(s_dsp)
     ln a1, (1 * NATIVE)(s_dsp)
@@ -563,6 +589,10 @@ def w_error, "error"
     _p bkpt // TODO
 enddef w_error
 
+def w_nl, "nl"
+    _lit '\r' ; _p putchar
+    _lit '\n' ; _p putchar
+enddef w_nl
 def w_u_dump, "_dump" // ( p -- )
     _ pdup ; _p eq
     list 101
@@ -581,7 +611,7 @@ def w_dump, "dump"
     _lit ' ' ; _p putchar
     _p dsp ; _lit data_stack_end ; _ u_dump
     _lit ')' ; _p putchar
-    _lit '\n' ; _p putchar
+    _ nl
 enddef w_dump
 
 def w_s_dot, "s."
@@ -625,16 +655,12 @@ def w_lx_show, "lx.show"
     _ lx_istr_load ; _ lx_ipos_load;
     _ over ; _p sub ; _ s_dot
 
-    _lit '<' ; _p putchar
-    _lit '<' ; _p putchar
-    _lit '<' ; _p putchar
-    _lit ' ' ; _p putchar
+    _litzs "\x1b[7m<- \x1b[0m" ; _ zs_dot
 
     _ lx_ipos_load ; _ lx_iend_load
     _ over ; _p sub ; _ s_dot
 
-    _lit '\r' ; _p putchar
-    _lit '\n' ; _p putchar
+    _ nl
 enddef w_lx_show
 
 def w_lx_input_store, "lx.input!"
@@ -744,7 +770,7 @@ def w_undef_dyn, "_undef_dyn"
     _litzs "Word " ; _ zs_dot
     _lit o_name ; _p add ; _p load ; _ zs_dot
     _litzs " called before definition" ; _ zs_dot
-    _lit '\n' ; _p putchar
+    _ nl
     _ error
 enddef w_undef_dyn
 
@@ -788,7 +814,7 @@ def w_comp_close_bracket, "_comp_close_bracket"
     _ lx_is_top
     list 101
         _litzs "Unmatched closing bracket" ; _ zs_dot
-        _lit '\n' ; _p putchar
+        _ nl
         _ lx_show
         _ error
     endlist 101, 201, w_comp_close_bracket_end
@@ -832,6 +858,7 @@ def w_is_space, "?space"
     _lit 0
     _ over ; _lit ' '; _p eq ; _p or
     _ over ; _lit '\t'; _p eq ; _p or
+    _ over ; _lit '\n'; _p eq ; _p or
     _ nip
 enddef w_is_space
 
@@ -926,7 +953,7 @@ def w_lx_check_buf, "lx.check_buf"
     _ lx_ppos_load ; _ lx_pend_load ; _lit 4 * NATIVE ; _p sub ; _p geu
     list 101
         _litzs "Out of parse buffer" ; _ zs_dot
-        _lit '\n' ; _p putchar
+        _ nl
         _ error
     endlist 101, 201, w_lx_check_buf_end
     list 101
@@ -955,7 +982,7 @@ def w_lx_parse, "lx.parse"
         list 102
             _ drop
             _litzs "Word not found:" ; _ zs_dot
-            _lit '\n' ; _p putchar
+            _ nl
             _ lx_show
             _ error
         endlist 102, 202, 201f
@@ -964,13 +991,31 @@ def w_lx_parse, "lx.parse"
     _tail ifelse
 enddef w_lx_parse
 
+def w_run_script, "_run_script"
+    _ pdup ; _lit '\n' ; _p memchr
+    // ( p:input n:input p )
+    _ dup
+    list 101
+        _p lcomma ; _p lcomma ; _p lcomma
+        _lload 2 ; _lload 0 ; _lload 2 ; _p sub ; _ lx_input_store
+        _ lx_parse
+        _lload 2 ; _lload 0 ; _lload 2 ; _p sub ; _p add ; _lit 1 ; _p add
+        _lload 1 ; _lload 0 ; _lload 2 ; _p sub ; _p sub ; _lit 1 ; _p sub
+        _tail run_script
+    endlist 101, 201, w_run_script_end
+    list 101
+        // Script is done
+        _ drop ; _ pdrop
+    endlist 101, 201, w_run_script_end
+    _tail ifelse
+enddef w_run_script
+
 def w_init_program, "_init_program"
     _ brk_align
     _lit 4096 ; _ dup ; _ sbrk ; _ swap ; _ lx_buf_store
-    _lit something ; _lit something_end ; _ over ; _p sub ; _ lx_input_store
     _lit 0 ; _ lx_listptr_store
     _lit 0 ; _ lx_last_store
-    _ lx_parse
+    _lit something ; _lit something_end ; _ over ; _p sub ; _ run_script
     _p exit
 enddef w_init_program
 
@@ -999,9 +1044,9 @@ end info_struct
 
     .section .rodata
 object something
-    .ascii "fn:loop [ getchar dup <0 [ drop ] [ putchar loop ] ifelse ] define loop"
+    .incbin "shell.five"
+    .byte '\n'
 something_end:
-    .ascii "extra garbage"
 end something
 
     .section .bss
