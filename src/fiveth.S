@@ -83,6 +83,41 @@ func memchr
     ret
 end memchr
 
+    // struct {
+    //     size_t result;
+    //     bool success;
+    // } parse_dec(const char *str, size_t len)
+func parse_dec
+    beqz a1, 10f
+    add a1, a1, a0
+    li a5, 0
+    li t0, '0'
+    li t1, '9'
+1:
+    lbu a2, (a0)
+    blt a2, t0, 10f
+    bgt a2, t1, 10f
+
+    slli a5, a5, 1 // a5 = 2 * prev
+    slli a3, a5, 2 // a3 = 4 * a5 = 8 * prev
+    add a5, a5, a3 // a5 = 10 * prev
+    addi a2, a2, - '0'
+    add a5, a5, a2
+
+    addi a0, a0, 1
+    bne a0, a1, 1b
+
+    mv a0, a5
+    li a1, 1
+    ret
+
+10:
+    // Fail
+    li a0, 0
+    li a1, 0
+    ret
+end parse_dec
+
     .macro go
         ln a0, (s_ip)
         jr a0
@@ -372,6 +407,15 @@ defcode do_memcpy, "memcpy"
     addi s_dsp, s_dsp, 3 * NATIVE
     next
 endcode do_memcpy
+
+defcode do_parse_dec, "parse_dec"
+    ln a0, (1 * NATIVE)(s_dsp)
+    ln a1, (0 * NATIVE)(s_dsp)
+    call parse_dec
+    sn a0, (1 * NATIVE)(s_dsp)
+    sn a1, (0 * NATIVE)(s_dsp)
+    next
+endcode do_parse_dec
 
 defcode do_print, "print"
     .pushsection .rodata.str1.1, "aMS", @progbits, 1
@@ -797,6 +841,23 @@ enddef w_comp_fn
 
 defspecial "fn:", w_comp_fn
 
+def w_comp_d_lit, "_comp_d_lit"
+    _ drop
+    _ lx_word
+    _p parse_dec
+    list 101
+        _lit do_lit + 1 ; _ lx_append
+        _ lx_append_imm
+    endlist 101, 201, w_comp_d_lit_end
+    list 101
+        _litzs "Invalid decimal literal\n" ; _ zs_dot
+        _ lx_show ; _ error
+    endlist 101, 201, w_comp_d_lit_end
+    _tail ifelse
+enddef w_comp_d_lit
+
+defspecial "d'", w_comp_d_lit
+
 def w_comp_open_bracket, "_comp_open_bracket"
     _ drop
     _lit 0 ; _ lx_last_store
@@ -864,8 +925,10 @@ enddef w_is_space
 
 def w_is_sigil, "?sigil"
     _lit 0
-    _ over ; _lit ':'; _p eq ; _p or
-    _ over ; _lit '"'; _p eq ; _p or
+    _ over ; _lit ':' ; _p eq ; _p or
+    _ over ; _lit '"' ; _p eq ; _p or
+    // Work around highlighter problem
+    _ over ; _lit 0x27 /* single quote */ ; _p eq ; _p or
     _ nip
 enddef w_is_sigil
 
@@ -991,6 +1054,12 @@ def w_lx_parse, "lx.parse"
     _tail ifelse
 enddef w_lx_parse
 
+def w_lx_reset, "lx.reset"
+    _ lx_pbuf_load ; _ lx_ppos_store
+    _lit 0 ; _ lx_listptr_store
+    _lit 0 ; _ lx_last_store
+enddef w_lx_reset
+
 def w_run_script, "_run_script"
     _ pdup ; _lit '\n' ; _p memchr
     // ( p:input n:input p )
@@ -1013,8 +1082,7 @@ enddef w_run_script
 def w_init_program, "_init_program"
     _ brk_align
     _lit 4096 ; _ dup ; _ sbrk ; _ swap ; _ lx_buf_store
-    _lit 0 ; _ lx_listptr_store
-    _lit 0 ; _ lx_last_store
+    _ lx_reset
     _lit something ; _lit something_end ; _ over ; _p sub ; _ run_script
     _p exit
 enddef w_init_program

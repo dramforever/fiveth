@@ -7,6 +7,4 @@ fn:loop [
     ] ifelse
 ] define
 
-fn:foo [] define
-
 loop
