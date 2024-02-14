@@ -1,10 +1,40 @@
-fn:loop [
-    getchar
-    dup <0 [
-        drop
-    ] [
-        putchar loop
-    ] ifelse
+fn:dip [
+    l, l,
+    d'0 l@ run
+    d'1 l@
 ] define
 
-loop
+fn:make_entry [
+    [ zs_copy ] dip
+    brk_align natives sbrk
+    tuck d'1 natives + !
+] define
+
+brk_align d'3 natives sbrk
+zsw"special: over d'1 natives + !
+[
+    drop
+    lx.word d'3 make_entry
+    =_comp_lit over d'2 natives + !
+    =do_lit d'1 + lx.append
+    lx.append_imm
+    =do_call d'1 + lx.append
+    [
+        tuck
+        d'2 natives + !
+        add_entry
+    ] lx.append_imm
+] over d'2 natives + !
+add_entry
+
+[
+    drop
+    lx.word d'4 make_entry
+    =_comp_lit over d'2 natives + !
+    tuck d'3 natives + !
+    add_entry
+] special:const:
+
+d'42 const:fortytwo
+
+zsw"Hello, zs. d'32 putchar zsw"World! zs. nl

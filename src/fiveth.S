@@ -266,6 +266,13 @@ end \label
         nbyte \comp
     .endm
 
+    .macro defconst name, value
+        mk_link
+        mk_name "\name"
+        nbyte w_comp_lit
+        nbyte \value
+    .endm
+
     .macro list start
         nbyte do_lit + 1, \start\()f
         _startlist \start
@@ -541,6 +548,13 @@ defcode do_select, "select"
     next
 endcode do_select
 
+defcode do_natives, "natives"
+    ln a0, (s_dsp)
+    slli a0, a0, LGNATIVE
+    sn a0, (s_dsp)
+    next
+endcode do_natives
+
 def w_last_word, "last_word"
     _lit info_last ; _ info_load
 enddef w_last_word
@@ -561,6 +575,11 @@ def w_over, "over"
     _p lcomma ; _p lcomma
     _lload 1 ; _lload 0 ; _lload 1
 enddef w_over
+
+def w_tuck, "tuck"
+    _p lcomma ; _p lcomma
+    _lload 0 ; _lload 1 ; _lload 0
+enddef w_tuck
 
 def w_swap, "swap"
     _p lcomma ; _p lcomma
@@ -733,11 +752,11 @@ def w_lx_append, "lx.append"
     _ lx_mark ; _ lx_append_imm
 enddef w_lx_append
 
-def w_lx_skip_word, "lx.skip_word"
+def w_lx_skip_token, "lx.skip_token"
     _ lx_ipos_load ; _ lx_iend_load ; _p eq
     list 101
         // End of input
-    endlist 101, 201, w_lx_skip_word_end
+    endlist 101, 201, w_lx_skip_token_end
     list 101
         _ lx_ipos_load ; _p b_load_u
         _ dup ; _ is_space
@@ -753,14 +772,40 @@ def w_lx_skip_word, "lx.skip_word"
             endlist 103, 203, 202f
             list 103
                 // Found normal word bytte
-                _tail lx_skip_word
+                _tail lx_skip_token
             endlist 103, 203, 202f
             _tail ifelse
+        endlist 102, 202, 201f
+        _tail ifelse
+    endlist 101, 201, w_lx_skip_token_end
+    _tail ifelse
+enddef w_lx_skip_token
+
+def w_lx_skip_word, "lx.skip_word"
+    _ lx_ipos_load ; _ lx_iend_load ; _p eq
+    list 101
+        // End of input
+    endlist 101, 201, w_lx_skip_word_end
+    list 101
+        _ lx_ipos_load ; _p b_load_u ; _ is_space
+        list 102
+            // Found space
+        endlist 102, 202, 201f
+        list 102
+            _ lx_ipos_load ; _lit 1 ; _p add ; _ lx_ipos_store
+            _tail lx_skip_word
         endlist 102, 202, 201f
         _tail ifelse
     endlist 101, 201, w_lx_skip_word_end
     _tail ifelse
 enddef w_lx_skip_word
+
+def w_lx_token, "lx.token"
+    _ lx_ipos_load
+    _ lx_skip_token
+    _ lx_ipos_load
+    _ over ; _p sub
+enddef w_lx_token
 
 def w_lx_word, "lx.word"
     _ lx_ipos_load
@@ -795,6 +840,15 @@ def w_lx_tail, "lx.tail"
     endlist 101, 201, w_lx_tail_end
     _tail ifelse
 enddef w_lx_tail
+
+def w_comp_lit, "_comp_lit"
+    _lit do_lit + 1 ; _ lx_append
+    _lit o_payload ; _p add ; _p load ; _tail lx_append_imm
+enddef w_comp_lit
+
+defconst "=_comp_lit", w_comp_lit
+defconst "=do_lit", do_lit
+defconst "=do_call", do_call
 
 def w_comp_call, "_comp_call"
     _lit do_call + 1 ; _ lx_append
@@ -858,6 +912,43 @@ enddef w_comp_d_lit
 
 defspecial "d'", w_comp_d_lit
 
+def w_comp_symbol, "_comp_symbol"
+    _ drop
+    _ lx_word
+    _ lookup ; _ dup
+    list 101
+        _ dup
+        _lit o_comp ; _p add ; _p load
+        _lit w_comp_call ; _p eq
+        list 102
+            _lit o_payload ; _p add ; _p load
+            _lit do_lit + 1 ; _ lx_append
+            _ lx_append_imm
+        endlist 102, 202, 201f
+        list 102
+            _litzs "Not a definition\n" ; _ zs_dot
+            _ lx_show ; _ error
+        endlist 102, 202, 201f
+        _tail ifelse
+    endlist 101, 201, w_comp_symbol_end
+    list 101
+        _litzs "Word not found\n" ; _ zs_dot
+        _ lx_show ; _ error
+    endlist 101, 201, w_comp_symbol_end
+    _tail ifelse
+enddef w_comp_symbol
+
+defspecial ":", w_comp_symbol
+
+def w_comp_zsw_lit, "_comp_zsw_lit"
+    _ drop
+    _ lx_word ; _ zs_copy
+    _lit do_lit + 1 ; _ lx_append
+    _ lx_append_imm
+enddef w_comp_zsw_lit
+
+defspecial "zsw\"", w_comp_zsw_lit
+
 def w_comp_open_bracket, "_comp_open_bracket"
     _ drop
     _lit 0 ; _ lx_last_store
@@ -910,6 +1001,7 @@ def w_define, "define"
         _lit w_comp_call ; _lload 0 ; _lit o_comp ; _p add ; _p store
     endlist 101, 201, w_define_end
     list 101
+        _litzs "Redefinition\n" ; _ zs_dot
         _ error
     endlist 101, 201, w_define_end
     _ ifelse
@@ -1032,7 +1124,7 @@ def w_lx_parse, "lx.parse"
         // End of input
     endlist 101, 201, w_lx_parse_end
     list 101
-        _ lx_word
+        _ lx_token
         // ( p:word n:word )
         _ pdup ; _p add ; _ lx_ipos_store
         _ lookup
@@ -1086,18 +1178,6 @@ def w_init_program, "_init_program"
     _lit something ; _lit something_end ; _ over ; _p sub ; _ run_script
     _p exit
 enddef w_init_program
-
-def w_one, "1"
-    _lit 1
-enddef w_one
-
-def w_four, "4"
-    _lit 4
-enddef w_four
-
-def w_ten, "10"
-    _lit 10
-enddef w_ten
 
     .set last_word, 1011b
 
