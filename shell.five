@@ -1,40 +1,40 @@
 fn:dip [
     l, l,
-    d'0 l@ run
-    d'1 l@
+    '0 l@ run
+    '1 l@
 ] define
 
 fn:make_entry [
     [ zs_copy ] dip
     brk_align natives sbrk
-    tuck d'1 natives + !
+    tuck '1 natives + !
 ] define
 
-brk_align d'3 natives sbrk
-zsw"special: over d'1 natives + !
+brk_align '3 natives sbrk
+zsw"special: over '1 natives + !
 [
     drop
-    lx.word d'3 make_entry
-    =_comp_lit over d'2 natives + !
-    =do_lit d'1 + lx.append
+    lx.word '3 make_entry
+    =_comp_lit over '2 natives + !
+    =do_lit '1 + lx.append
     lx.append_imm
-    =do_call d'1 + lx.append
+    =do_call '1 + lx.append
     [
         tuck
-        d'2 natives + !
+        '2 natives + !
         add_entry
     ] lx.append_imm
-] over d'2 natives + !
+] over '2 natives + !
 add_entry
 
 [
     drop
-    lx.word d'4 make_entry
-    =_comp_lit over d'2 natives + !
-    tuck d'3 natives + !
+    lx.word '4 make_entry
+    =_comp_lit over '2 natives + !
+    tuck '3 natives + !
     add_entry
 ] special:const:
 
-d'42 const:fortytwo
+'42 const:fortytwo
 
-zsw"Hello, zs. d'32 putchar zsw"World! zs. nl
+zsw"Hello, zs. '32 putchar zsw"World! zs. nl

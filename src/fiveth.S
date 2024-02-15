@@ -895,22 +895,22 @@ enddef w_comp_fn
 
 defspecial "fn:", w_comp_fn
 
-def w_comp_d_lit, "_comp_d_lit"
+def w_comp_dec_lit, "_comp_lit"
     _ drop
     _ lx_word
     _p parse_dec
     list 101
         _lit do_lit + 1 ; _ lx_append
         _ lx_append_imm
-    endlist 101, 201, w_comp_d_lit_end
+    endlist 101, 201, w_comp_dec_lit_end
     list 101
         _litzs "Invalid decimal literal\n" ; _ zs_dot
         _ lx_show ; _ error
-    endlist 101, 201, w_comp_d_lit_end
+    endlist 101, 201, w_comp_dec_lit_end
     _tail ifelse
-enddef w_comp_d_lit
+enddef w_comp_dec_lit
 
-defspecial "d'", w_comp_d_lit
+defspecial "'", w_comp_dec_lit
 
 def w_comp_symbol, "_comp_symbol"
     _ drop
