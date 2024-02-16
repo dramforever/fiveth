@@ -1,7 +1,22 @@
+fn:rot [
+    l, l, l,
+    '1 l@ '0 l@ '2 l@
+] define
+
 fn:dip [
     l, l,
     '0 l@ run
     '1 l@
+] define
+
+fn:keep [
+    l, l,
+    '1 l@ '0 l@ run
+    '1 l@
+] define
+
+fn:bi [
+    [ keep ] dip run
 ] define
 
 fn:make_entry [
@@ -29,12 +44,68 @@ add_entry
 
 [
     drop
+    lx.ipos@ lx.iend@ over -
+    '10 memchr
+    dup [
+        lx.ipos!
+    ] [
+        drop lx.iend@ lx.ipos!
+    ] ifelse
+] special:;
+
+; Comments! They work!
+
+[
+    drop
     lx.word '4 make_entry
     =_comp_lit over '2 natives + !
     tuck '3 natives + !
     add_entry
 ] special:const:
 
-'42 const:fortytwo
+'1024 sbrk const:=input_buf
+'1 natives sbrk const:=iptr
+=input_buf =iptr !
 
-zsw"Hello, zs. '32 putchar zsw"World! zs. nl
+fn:hello [
+    ; This is the
+    zsw"Hello, zs. '32 putchar zsw"world! zs. nl ; hello world program
+] define
+
+fn:between [
+    over -   [ - ] dip   <u
+] define
+
+fn:shell_loop
+    fn:handle_line [
+        getchar
+        dup '32 '128 between [
+            ; Normal character
+            dup putchar
+            =iptr @ !
+            =iptr @ '1 + =iptr !
+            handle_line
+        ] [
+            dup '13 = [
+                ; Return key
+                drop
+                nl
+                =input_buf   =iptr @ =input_buf -   lx.input!
+                =input_buf =iptr !
+                lx.parse
+                shell_loop
+            ] [
+                ; TODO: Control character or UTF-8
+                handle_line
+            ] ifelse
+        ] ifelse
+    ] define
+[
+    handle_line
+] define
+
+fn:shell [
+    lx.reset shell_loop
+] define
+
+shell
