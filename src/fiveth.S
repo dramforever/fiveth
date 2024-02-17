@@ -81,6 +81,21 @@ func memchr
     ret
 end memchr
 
+    // void *memcpy(void *dest, const void *src, size_t n);
+func memcpy
+    add a2, a2, a0
+1:
+    beq a0, a2, 10f
+    lb a5, (a1)
+    sb a5, (a0)
+    addi a0, a0, 1
+    addi a1, a1, 1
+    j 1b
+
+10:
+    ret
+end memcpy
+
     // struct {
     //     size_t result;
     //     bool success;

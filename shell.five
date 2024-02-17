@@ -65,7 +65,7 @@ add_entry
 
 fn:hello [
     ; This is the
-    zsw"Hello, zs. '32 putchar zsw"world! zs. nl ; hello world program
+    zsw"Hello, zs. '32 putchar zsw"world! zs. ; hello world program
 ] define
 
 fn:between [
