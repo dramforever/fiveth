@@ -64,6 +64,7 @@
 #define info_brk (0 * NATIVE)
 #define info_brk_lim (1 * NATIVE)
 #define info_last (2 * NATIVE)
-#define info_lx (3 * NATIVE)
+#define info_handler (3 * NATIVE)
+#define info_lx (4 * NATIVE)
 
 #endif /* _FIVETH_DEFS_H */

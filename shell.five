@@ -96,7 +96,7 @@ fn:case [
 '1 natives sbrk const:=iptr
 =input_buf =iptr !
 
-fn:insert_char [
+fn:in.insert [
     =iptr @ !
     =iptr @ '1 + =iptr !
 ] define
@@ -106,7 +106,7 @@ fn:cur_input [
     =iptr @ =input_buf -
 ] define
 
-fn:reset_input [
+fn:in.reset [
     =input_buf =iptr !
 ] define
 
@@ -114,14 +114,14 @@ fn:spc [
     '32 putchar
 ] define
 
-fn:shell_loop
-    fn:handle_line [
+fn:sh.loop
+    fn:sh.line [
         getchar
         begin_case
             [
                 ; Normal character
-                dup putchar insert_char
-                handle_line
+                dup putchar in.insert
+                sh.line
             ] [ dup '32 '127 between ] case
             [
                 ; Return key
@@ -129,7 +129,7 @@ fn:shell_loop
                 spc spc '59 putchar spc
                 cur_input lx.input!
                 lx.parse
-                nl reset_input shell_loop
+                nl in.reset sh.loop
             ] [ dup '13 = ] case
             [
                 ; Ctrl-D
@@ -139,10 +139,11 @@ fn:shell_loop
                 ; Ctrl-C
                 drop
                 spc spc '59 putchar spc zsw"^C zs. nl
-                reset_input shell_loop
+                in.reset sh.loop
             ] [ dup '3 = ] case
             [
-                handle_line
+                drop
+                sh.line
             ] [ '1 ] case
         end_case
         tailrun
@@ -151,12 +152,18 @@ fn:shell_loop
     lx.?top [ '62 ] [ '124 ] ifelse
     putchar
     '32 putchar
-    handle_line
+    sh.line
 ] define
 
-fn:shell [
-    lx.reset shell_loop
-    zsw"(exit) zs. nl
+fn:sh.run [
+    =ds_end dsp!
+    =rs_end rsp!
+    lx.reset
+    in.reset
+    sh.loop
+    zsw"(exit) zs. nl exit
 ] define
 
-shell
+:sh.run '3 natives info!
+
+sh.run

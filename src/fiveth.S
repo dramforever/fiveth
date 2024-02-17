@@ -364,18 +364,29 @@ defcode do_lload, "l@"
     next
 endcode do_lload
 
-defcode do_dsp, "dsp"
+defcode do_dsp_load, "dsp@"
     mv a0, s_dsp
     addi s_dsp, s_dsp, -1 * NATIVE
     sn a0, (s_dsp)
     next
-endcode do_dsp
+endcode do_dsp_load
 
-defcode do_rsp, "rsp"
+defcode do_dsp_store, "dsp!"
+    ln s_dsp, (s_dsp)
+    next
+endcode do_dsp_store
+
+defcode do_rsp_load, "rsp@"
     addi s_dsp, s_dsp, -1 * NATIVE
     sn s_rsp, (s_dsp)
     next
-endcode do_rsp
+endcode do_rsp_load
+
+defcode do_rsp_store, "rsp!"
+    ln s_rsp, (s_dsp)
+    addi s_dsp, s_dsp, 1 * NATIVE
+    next
+endcode do_rsp_store
 
 defcode do_of_info, "=info"
     addi s_dsp, s_dsp, -1 * NATIVE
@@ -427,21 +438,6 @@ defcode do_parse_dec, "parse_dec"
     sn a1, (0 * NATIVE)(s_dsp)
     next
 endcode do_parse_dec
-
-defcode do_print, "print"
-    .pushsection .rodata.str1.1, "aMS", @progbits, 1
-1:
-    .string "0x%x "
-    .popsection
-
-    la a0, 1b
-    ln a1, (0 * NATIVE)(s_dsp)
-    call printf
-    ln a0, stdout
-    call fflush
-    addi s_dsp, s_dsp, 1 * NATIVE
-    next
-endcode do_print
 
 defcode do_putchar, "putchar"
     ln a0, (s_dsp)
@@ -563,6 +559,14 @@ def w_last_word, "last_word"
     _lit info_last ; _ info_load
 enddef w_last_word
 
+def w_handler_load, "handler@"
+    _lit info_handler ; _ info_load
+enddef w_handler_load
+
+def w_handler_store, "handler!"
+    _lit info_handler ; _ info_store
+enddef w_handler_store
+
 def w_dup, "dup"
     _p lcomma ; _lload 0 ; _lload 0
 enddef w_dup
@@ -652,15 +656,68 @@ def w_alloca, "alloca"
     _p run // Not tailrun here
 enddef w_alloca
 
+def w_abort, "abort"
+    _ nl ; _litzs "Abort" ; _ zs_dot
+    _ nl
+    _p bkpt
+enddef w_abort
+
 def w_error, "error"
     _ nl
-    _p bkpt // TODO
+    _ handler_load ; _p tailrun
 enddef w_error
 
 def w_nl, "nl"
     _lit '\r' ; _p putchar
     _lit '\n' ; _p putchar
 enddef w_nl
+
+def w_hexchar, "_hexchar"
+    _ dup ; _lit 10 ; _p lt
+    list 101
+        _lit '0' ; _p add
+    endlist 101, 201, w_hexchar
+    list 101
+        _lit 'a' - 10 ; _p add
+    endlist 101, 201, w_hexchar
+    _tail ifelse
+enddef w_hexchar
+
+def w_hexprint2, "_hexprint2"
+    _ dup
+    list 101
+        _lit 4 ; _p sub
+        _ pdup ; _p shr ; _lit 0xf ; _p and
+        _ hexchar ; _p putchar
+        _tail hexprint2
+    endlist 101, 201, w_hexprint2
+    list 101
+        _ pdrop
+    endlist 101, 201, w_hexprint2
+    _tail ifelse
+enddef w_hexprint2
+
+def w_hexprint1, "_hexprint1"
+    _ pdup
+    _lit 4 ; _p sub ; _p shr ; _p nez
+    _ over ; _lit 4 ; _p eq ; _p or
+    list 101
+        _tail hexprint2
+    endlist 101, 201, w_hexprint1
+    list 101
+        _lit 4 ; _p sub
+        _tail hexprint1
+    endlist 101, 201, w_hexprint1
+    _tail ifelse
+enddef w_hexprint1
+
+def w_dot_h, ".h"
+    _lit 'h' ; _p putchar
+    _lit 0x27 ; _p putchar
+    _lit NATIVE * 8 ; _ hexprint1
+    _lit ' ' ; _p putchar
+enddef w_dot_h
+
 def w_u_dump, "_dump" // ( p -- )
     _ pdup ; _p eq
     list 101
@@ -668,7 +725,7 @@ def w_u_dump, "_dump" // ( p -- )
     endlist 101, 201, w_u_dump
     list 101
         _lit NATIVE ; _p sub
-        _ dup ; _p load ; _p print
+        _ dup ; _p load ; _ dot_h
         _tail u_dump
     endlist 101, 201, w_u_dump
     _tail ifelse
@@ -678,7 +735,7 @@ def w_dump, "dump"
     _ nl
     _lit '(' ; _p putchar
     _lit ' ' ; _p putchar
-    _p dsp ; _lit data_stack_end ; _ u_dump
+    _p dsp_load ; _lit data_stack_end ; _ u_dump
     _lit ')' ; _p putchar
 enddef w_dump
 
@@ -854,6 +911,8 @@ enddef w_comp_lit
 defconst "=_comp_lit", w_comp_lit
 defconst "=do_lit", do_lit
 defconst "=do_call", do_call
+defconst "=ds_end", data_stack_end
+defconst "=rs_end", return_stack_end
 
 def w_comp_call, "_comp_call"
     _lit do_call + 1 ; _ lx_append
@@ -1189,6 +1248,7 @@ object info_struct
     nbyte data_space
     nbyte data_space_end
     nbyte last_word
+    nbyte w_abort
 
     .zero 8 * NATIVE // lx
 end info_struct
