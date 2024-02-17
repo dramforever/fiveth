@@ -16,7 +16,7 @@ fn:keep [
 ] define
 
 fn:bi [
-    [ keep ] dip run
+    [ keep ] dip tailrun
 ] define
 
 fn:make_entry [
@@ -76,17 +76,38 @@ fn:between [
     over -   [ - ] dip   <u
 ] define
 
+fn:begin_case [ '0 ] define
+fn:end_case [ drop ] define
+
+fn:case [
+    ; ( 0 val cond -- 0 )
+    ; ( 0 val cond -- val 1 )
+    ; ( 1 val cond -- 1 )
+    [ over ] dip swap [
+        pdrop
+    ] [
+        [ nip ] dip ; ( val cond )
+        dip ; ( t val )
+        swap [
+            '1
+        ] [
+            drop '0
+        ] ifelse
+    ] ifelse
+] define
+
 fn:shell_loop
     fn:handle_line [
         getchar
-        dup '32 '128 between [
-            ; Normal character
-            dup putchar
-            =iptr @ !
-            =iptr @ '1 + =iptr !
-            handle_line
-        ] [
-            dup '13 = [
+        begin_case
+            [
+                ; Normal character
+                dup putchar
+                =iptr @ !
+                =iptr @ '1 + =iptr !
+                handle_line
+            ] [ dup '32 '128 between ] case
+            [
                 ; Return key
                 drop
                 nl
@@ -94,13 +115,16 @@ fn:shell_loop
                 =input_buf =iptr !
                 lx.parse
                 shell_loop
-            ] [
-                ; TODO: Control character or UTF-8
+            ] [ dup '13 = ] case
+            [
                 handle_line
-            ] ifelse
-        ] ifelse
+            ] [ '1 ] case
+        end_case
+        tailrun
     ] define
 [
+    '62 putchar
+    '32 putchar
     handle_line
 ] define
 
