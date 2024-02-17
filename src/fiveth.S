@@ -678,8 +678,9 @@ def w_abort, "abort"
 enddef w_abort
 
 def w_error, "error"
-    _ nl
-    _ handler_load ; _p tailrun
+    _ handler_load
+    _lit w_abort ; _ handler_store
+    _p tailrun
 enddef w_error
 
 def w_nl, "nl"
