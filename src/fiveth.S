@@ -21,8 +21,6 @@ func main
     jr a0
 
 exit_main:
-    li a0, 0
-
     ln ra, (0 * NATIVE)(sp)
     ln s_dsp, (1 * NATIVE)(sp)
     ln s_ip, (2 * NATIVE)(sp)
@@ -337,7 +335,7 @@ defcode do_tailrun, "tailrun"
 endcode do_tailrun
 
 defcode do_exit, "exit"
-    addi s_dsp, s_dsp, 1 * NATIVE
+    addi s_ip, s_ip, 1 * NATIVE
     j exit_main
 endcode do_exit
 
@@ -372,6 +370,12 @@ defcode do_dsp, "dsp"
     sn a0, (s_dsp)
     next
 endcode do_dsp
+
+defcode do_rsp, "rsp"
+    addi s_dsp, s_dsp, -1 * NATIVE
+    sn s_rsp, (s_dsp)
+    next
+endcode do_rsp
 
 defcode do_of_info, "=info"
     addi s_dsp, s_dsp, -1 * NATIVE
@@ -649,6 +653,7 @@ def w_alloca, "alloca"
 enddef w_alloca
 
 def w_error, "error"
+    _ nl
     _p bkpt // TODO
 enddef w_error
 
@@ -670,11 +675,11 @@ def w_u_dump, "_dump" // ( p -- )
 enddef w_u_dump
 
 def w_dump, "dump"
+    _ nl
     _lit '(' ; _p putchar
     _lit ' ' ; _p putchar
     _p dsp ; _lit data_stack_end ; _ u_dump
     _lit ')' ; _p putchar
-    _ nl
 enddef w_dump
 
 def w_s_dot, "s."
@@ -715,6 +720,8 @@ enddef w_lx_\name\()_store
     lxop last, lx_last
 
 def w_lx_show, "lx.show"
+    _ nl
+
     _ lx_istr_load ; _ lx_ipos_load;
     _ over ; _p sub ; _ s_dot
 
@@ -722,8 +729,6 @@ def w_lx_show, "lx.show"
 
     _ lx_ipos_load ; _ lx_iend_load
     _ over ; _p sub ; _ s_dot
-
-    _ nl
 enddef w_lx_show
 
 def w_lx_input_store, "lx.input!"
@@ -865,10 +870,10 @@ def w_comp_dyn, "_comp_dyn"
 enddef w_comp_dyn
 
 def w_undef_dyn, "_undef_dyn"
+    _ nl
     _litzs "Word " ; _ zs_dot
     _lit o_name ; _p add ; _p load ; _ zs_dot
     _litzs " called before definition" ; _ zs_dot
-    _ nl
     _ error
 enddef w_undef_dyn
 
@@ -904,7 +909,7 @@ def w_comp_dec_lit, "_comp_lit"
         _ lx_append_imm
     endlist 101, 201, w_comp_dec_lit_end
     list 101
-        _litzs "Invalid decimal literal\n" ; _ zs_dot
+        _ nl ; _litzs "Invalid decimal literal" ; _ zs_dot
         _ lx_show ; _ error
     endlist 101, 201, w_comp_dec_lit_end
     _tail ifelse
@@ -926,13 +931,13 @@ def w_comp_symbol, "_comp_symbol"
             _ lx_append_imm
         endlist 102, 202, 201f
         list 102
-            _litzs "Not a definition\n" ; _ zs_dot
+            _ nl; _litzs "Not a definition" ; _ zs_dot
             _ lx_show ; _ error
         endlist 102, 202, 201f
         _tail ifelse
     endlist 101, 201, w_comp_symbol_end
     list 101
-        _litzs "Word not found\n" ; _ zs_dot
+        _ nl; _litzs "Word not found" ; _ zs_dot
         _ lx_show ; _ error
     endlist 101, 201, w_comp_symbol_end
     _tail ifelse
@@ -965,8 +970,8 @@ def w_comp_close_bracket, "_comp_close_bracket"
     _ drop
     _ lx_is_top
     list 101
-        _litzs "Unmatched closing bracket" ; _ zs_dot
         _ nl
+        _litzs "Unmatched closing bracket" ; _ zs_dot
         _ lx_show
         _ error
     endlist 101, 201, w_comp_close_bracket_end
@@ -1001,7 +1006,7 @@ def w_define, "define"
         _lit w_comp_call ; _lload 0 ; _lit o_comp ; _p add ; _p store
     endlist 101, 201, w_define_end
     list 101
-        _litzs "Redefinition\n" ; _ zs_dot
+        _ nl ; _litzs "Redefinition" ; _ zs_dot
         _ error
     endlist 101, 201, w_define_end
     _ ifelse
@@ -1107,8 +1112,7 @@ enddef w_lx_check_run
 def w_lx_check_buf, "lx.check_buf"
     _ lx_ppos_load ; _ lx_pend_load ; _lit 4 * NATIVE ; _p sub ; _p geu
     list 101
-        _litzs "Out of parse buffer" ; _ zs_dot
-        _ nl
+        _ nl ; _litzs "Out of parse buffer" ; _ zs_dot
         _ error
     endlist 101, 201, w_lx_check_buf_end
     list 101
@@ -1136,8 +1140,7 @@ def w_lx_parse, "lx.parse"
         endlist 102, 202, 201f
         list 102
             _ drop
-            _litzs "Word not found:" ; _ zs_dot
-            _ nl
+            _ nl ; _litzs "Word not found:" ; _ zs_dot
             _ lx_show
             _ error
         endlist 102, 202, 201f
