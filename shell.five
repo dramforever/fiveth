@@ -16,7 +16,7 @@ fn:keep [
 ] define
 
 fn:bi [
-    [ keep ] dip tailrun
+    [ keep ] dip run
 ] define
 
 fn:make_entry [
@@ -156,6 +156,17 @@ fn:sh.loop
                 drop
             ] [ dup '4 = ] case
             [
+                drop
+                ; Backspace
+                =iptr @ =input_buf = [
+
+                ] [
+                    '8 putchar '32 putchar '8 putchar
+                    =iptr @ '1 - =iptr !
+                ] ifelse
+                sh.line
+            ] [ dup '127 = ] case
+            [
                 ; Ctrl-C
                 drop
                 spc spc '59 putchar spc zsw"^C zs.
@@ -166,7 +177,7 @@ fn:sh.loop
                 sh.line
             ] [ '1 ] case
         end_case
-        tailrun
+        run
     ] define
 [
     nl
@@ -189,5 +200,14 @@ fn:sh.loop
 ] =sh.run !
 
 fn:sh.run =sh.run @ define
+
+fn:_words [
+  dup [
+    dup '1 natives + @ zs. spc
+    @ _words
+  ] [ drop ] ifelse
+] define
+
+fn:words [ last_word _words ] define
 
 sh.run
